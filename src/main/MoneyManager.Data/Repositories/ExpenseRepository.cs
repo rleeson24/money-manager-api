@@ -75,8 +75,8 @@ namespace MoneyManager.Data.Repositories
 					new SqlParameter("@ExpenseDate", expense.ExpenseDate),
 					new SqlParameter("@Expense", expense.Expense),
 					new SqlParameter("@Amount", expense.Amount),
-					new SqlParameter("@PaymentMethod", expense.PaymentMethod),
-					new SqlParameter("@Category", expense.Category),
+					new SqlParameter("@PaymentMethod", (object?)expense.PaymentMethod ?? DBNull.Value),
+					new SqlParameter("@Category", (object?)expense.Category ?? DBNull.Value),
 					new SqlParameter("@DatePaid", (object?)expense.DatePaid ?? DBNull.Value),
 					new SqlParameter("@UserId", userId),
 					new SqlParameter("@CreatedDate", DateTime.UtcNow)
@@ -98,8 +98,8 @@ namespace MoneyManager.Data.Repositories
 					new SqlParameter("@ExpenseDate", expense.ExpenseDate),
 					new SqlParameter("@Expense", expense.Expense),
 					new SqlParameter("@Amount", expense.Amount),
-					new SqlParameter("@PaymentMethod", expense.PaymentMethod),
-					new SqlParameter("@Category", expense.Category),
+					new SqlParameter("@PaymentMethod", (object?)expense.PaymentMethod ?? DBNull.Value),
+					new SqlParameter("@Category", (object?)expense.Category ?? DBNull.Value),
 					new SqlParameter("@DatePaid", (object?)expense.DatePaid ?? DBNull.Value),
 					new SqlParameter("@ModifiedDate", DateTime.UtcNow),
 					new SqlParameter("@UserId", userId)
@@ -137,10 +137,15 @@ namespace MoneyManager.Data.Repositories
 				setClauses.Add("ExpenseDate = @ExpenseDate");
 				parameters.Add(new SqlParameter("@ExpenseDate", updates["ExpenseDate"]));
 			}
-			if (updates.ContainsKey("Category") && updates["Category"] != null)
+			if (updates.ContainsKey("Category"))
 			{
-				setClauses.Add("Category = @Category");
-				parameters.Add(new SqlParameter("@Category", updates["Category"]));
+				if (updates["Category"] == null)
+					setClauses.Add("Category = NULL");
+				else
+				{
+					setClauses.Add("Category = @Category");
+					parameters.Add(new SqlParameter("@Category", updates["Category"]));
+				}
 			}
 			if (updates.ContainsKey("DatePaid"))
 			{
@@ -208,15 +213,25 @@ namespace MoneyManager.Data.Repositories
 				setClauses.Add("Amount = @Amount");
 				parameters.Add(new SqlParameter("@Amount", updates["Amount"]));
 			}
-			if (updates.ContainsKey("PaymentMethod") && updates["PaymentMethod"] != null)
+			if (updates.ContainsKey("PaymentMethod"))
 			{
-				setClauses.Add("PaymentMethod = @PaymentMethod");
-				parameters.Add(new SqlParameter("@PaymentMethod", updates["PaymentMethod"]));
+				if (updates["PaymentMethod"] == null)
+					setClauses.Add("PaymentMethod = NULL");
+				else
+				{
+					setClauses.Add("PaymentMethod = @PaymentMethod");
+					parameters.Add(new SqlParameter("@PaymentMethod", updates["PaymentMethod"]));
+				}
 			}
-			if (updates.ContainsKey("Category") && updates["Category"] != null)
+			if (updates.ContainsKey("Category"))
 			{
-				setClauses.Add("Category = @Category");
-				parameters.Add(new SqlParameter("@Category", updates["Category"]));
+				if (updates["Category"] == null)
+					setClauses.Add("Category = NULL");
+				else
+				{
+					setClauses.Add("Category = @Category");
+					parameters.Add(new SqlParameter("@Category", updates["Category"]));
+				}
 			}
 			if (updates.ContainsKey("DatePaid"))
 			{

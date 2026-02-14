@@ -9,8 +9,8 @@ namespace MoneyManager.Core.Models
 		[JsonPropertyName("Expense")]
 		public string ExpenseDescription { get; set; } = string.Empty;
 		public decimal Amount { get; set; }
-		public int PaymentMethod { get; set; }
-		public string Category { get; set; } = string.Empty;
+		public int? PaymentMethod { get; set; }
+		public string? Category { get; set; }
 		public DateTime? DatePaid { get; set; }
 	}
 }

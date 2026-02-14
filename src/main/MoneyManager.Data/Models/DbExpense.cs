@@ -6,8 +6,8 @@ namespace MoneyManager.Data.Models
 		public DateTime ExpenseDate { get; set; }
 		public string Expense { get; set; } = string.Empty;
 		public decimal Amount { get; set; }
-		public int PaymentMethod { get; set; }
-		public string Category { get; set; } = string.Empty;
+		public int? PaymentMethod { get; set; }
+		public string? Category { get; set; }
 		public DateTime? DatePaid { get; set; }
 		public Guid UserId { get; set; }
 		public DateTime CreatedDate { get; set; }

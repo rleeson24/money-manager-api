@@ -190,7 +190,9 @@ namespace MoneyManager.API.Controllers
 			var updates = new Dictionary<string, object?>();
 			if (request.ExpenseDate != null)
 				updates["ExpenseDate"] = request.ExpenseDate;
-			if (request.Category != null)
+			if (request.setCategoryToNull == true)
+				updates["Category"] = null;
+			else if (request.Category != null)
 				updates["Category"] = request.Category;
 			if (request.setDatePaidToNull == true)
 				updates["DatePaid"] = null;
@@ -230,6 +232,7 @@ namespace MoneyManager.API.Controllers
 		public List<int> Ids { get; set; } = new();
 		public DateTime? ExpenseDate { get; set; }
 		public string? Category { get; set; }
+		public bool? setCategoryToNull { get; set; }
 		public DateTime? DatePaid { get; set; }
 		public bool? setDatePaidToNull { get; set; }
 	}
