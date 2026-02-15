@@ -1,6 +1,5 @@
 using MoneyManager.Core.Models;
-using MoneyManager.Core.Mappers;
-using MoneyManager.Data.Repositories;
+using MoneyManager.Core.Repositories;
 using Microsoft.Extensions.Logging;
 
 namespace MoneyManager.Core.UseCases.Expenses
@@ -14,24 +13,18 @@ namespace MoneyManager.Core.UseCases.Expenses
 	{
 		private readonly IExpenseRepository _repository;
 		private readonly ILogger<GetExpenseUseCase> _logger;
-		private readonly IExpenseMapper _mapper;
 
-		public GetExpenseUseCase(IExpenseRepository repository, ILogger<GetExpenseUseCase> logger, IExpenseMapper mapper)
+		public GetExpenseUseCase(IExpenseRepository repository, ILogger<GetExpenseUseCase> logger)
 		{
 			_repository = repository;
 			_logger = logger;
-			_mapper = mapper;
 		}
 
 		public async Task<Expense?> Execute(int id, Guid userId)
 		{
 			try
 			{
-				var expense = await _repository.Get(id, userId);
-				if (expense == null)
-					return null;
-
-				return _mapper.DbToOutput(expense);
+				return await _repository.Get(id, userId);
 			}
 			catch (Exception ex)
 			{

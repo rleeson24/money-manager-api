@@ -1,3 +1,6 @@
+using MoneyManager.Core.Models;
+using MoneyManager.Core.Models.Input;
+using MoneyManager.Core.Repositories;
 using MoneyManager.Data.Mappers;
 using MoneyManager.Data.Models;
 using MoneyManager.Data.Utilities;
@@ -8,105 +11,50 @@ namespace MoneyManager.Data.Repositories
 	public class ExpenseRepository : IExpenseRepository
 	{
 		private readonly DbExecutor _db;
-		private readonly IExpenseMapper _mapper;
+		private readonly IExpenseMapper _readerMapper;
+		private readonly ExpenseDomainMapper _domainMapper;
 
-		public ExpenseRepository(DbExecutor db, IExpenseMapper mapper)
+		public ExpenseRepository(DbExecutor db, IExpenseMapper readerMapper, ExpenseDomainMapper domainMapper)
 		{
 			_db = db;
-			_mapper = mapper;
+			_readerMapper = readerMapper;
+			_domainMapper = domainMapper;
 		}
 
-		public async Task<DbExpense?> Get(int id, Guid userId)
+		public async Task<Expense?> Get(int id, Guid userId)
 		{
-			var result = default(DbExpense?);
-			await _db.ExecuteReader(
-				"SELECT * FROM Expenses WHERE Expense_I = @Id AND UserId = @UserId",
-				[
-					new SqlParameter("@Id", id),
-					new SqlParameter("@UserId", userId)
-				],
-				async sqlReader =>
-				{
-					if (await sqlReader.ReadAsync())
-					{
-						result = await _mapper.FromDbReader(sqlReader);
-					}
-				});
-			return result;
+			var db = await GetDb(id, userId);
+			return db != null ? _domainMapper.ToExpense(db) : null;
 		}
 
-		public async Task<IEnumerable<DbExpense>> ListForUser(Guid userId, string? month = null)
+		public async Task<IEnumerable<Expense>> ListForUser(Guid userId, string? month = null)
 		{
-			var result = new List<DbExpense>();
-			var sql = "SELECT * FROM Expenses WHERE UserId = @UserId";
-			var parameters = new List<SqlParameter>
-			{
-				new SqlParameter("@UserId", userId)
-			};
-
-			if (!string.IsNullOrEmpty(month))
-			{
-				sql += " AND FORMAT(ExpenseDate, 'yyyy-MM') = @Month";
-				parameters.Add(new SqlParameter("@Month", month));
-			}
-
-			sql += " ORDER BY ExpenseDate DESC";
-
-			await _db.ExecuteReader(sql, parameters, async sqlReader =>
-			{
-				while (await sqlReader.ReadAsync())
-				{
-					result.Add(await _mapper.FromDbReader(sqlReader));
-				}
-			});
-			return result;
+			var list = await ListForUserDb(userId, month);
+			return list.Select(_domainMapper.ToExpense);
 		}
 
-		public async Task<int> Save(Guid userId, DbExpense expense)
+		public async Task<Expense?> Create(Guid userId, CreateExpenseModel model)
 		{
-			if (expense.Expense_I == 0)
-			{
-				// Insert
-				var sql = @"INSERT INTO Expenses (ExpenseDate, Expense, Amount, PaymentMethod, Category, DatePaid, UserId, CreatedDate)
-							VALUES (@ExpenseDate, @Expense, @Amount, @PaymentMethod, @Category, @DatePaid, @UserId, @CreatedDate);
-							SELECT CAST(SCOPE_IDENTITY() as int);";
+			var db = _domainMapper.ToDbExpense(model, userId);
+			var id = await SaveDb(userId, db);
+			if (id <= 0) return null;
+			return await Get(id, userId);
+		}
 
-				var result = await _db.ExecuteScalar(sql, [
-					new SqlParameter("@ExpenseDate", expense.ExpenseDate),
-					new SqlParameter("@Expense", expense.Expense),
-					new SqlParameter("@Amount", expense.Amount),
-					new SqlParameter("@PaymentMethod", (object?)expense.PaymentMethod ?? DBNull.Value),
-					new SqlParameter("@Category", (object?)expense.Category ?? DBNull.Value),
-					new SqlParameter("@DatePaid", (object?)expense.DatePaid ?? DBNull.Value),
-					new SqlParameter("@UserId", userId),
-					new SqlParameter("@CreatedDate", DateTime.UtcNow)
-				]);
+		public async Task<Expense?> Update(int id, Guid userId, CreateExpenseModel model)
+		{
+			var existing = await GetDb(id, userId);
+			if (existing == null) return null;
+			_domainMapper.Update(existing, model);
+			await SaveDb(userId, existing);
+			return await Get(id, userId);
+		}
 
-				return result != null ? Convert.ToInt32(result) : 0;
-			}
-			else
-			{
-				// Update
-				var sql = @"UPDATE Expenses 
-							SET ExpenseDate = @ExpenseDate, Expense = @Expense, Amount = @Amount, 
-								PaymentMethod = @PaymentMethod, Category = @Category, DatePaid = @DatePaid, 
-								ModifiedDate = @ModifiedDate
-							WHERE Expense_I = @Id AND UserId = @UserId";
-
-				await _db.ExecuteNonQuery(sql, [
-					new SqlParameter("@Id", expense.Expense_I),
-					new SqlParameter("@ExpenseDate", expense.ExpenseDate),
-					new SqlParameter("@Expense", expense.Expense),
-					new SqlParameter("@Amount", expense.Amount),
-					new SqlParameter("@PaymentMethod", (object?)expense.PaymentMethod ?? DBNull.Value),
-					new SqlParameter("@Category", (object?)expense.Category ?? DBNull.Value),
-					new SqlParameter("@DatePaid", (object?)expense.DatePaid ?? DBNull.Value),
-					new SqlParameter("@ModifiedDate", DateTime.UtcNow),
-					new SqlParameter("@UserId", userId)
-				]);
-
-				return expense.Expense_I;
-			}
+		public async Task<Expense?> Patch(int id, Guid userId, Dictionary<string, object?> updates)
+		{
+			var success = await UpdateDb(id, userId, updates);
+			if (!success) return null;
+			return await Get(id, userId);
 		}
 
 		public async Task<bool> Delete(int id, Guid userId)
@@ -150,9 +98,7 @@ namespace MoneyManager.Data.Repositories
 			if (updates.ContainsKey("DatePaid"))
 			{
 				if (updates["DatePaid"] == null)
-				{
 					setClauses.Add("DatePaid = NULL");
-				}
 				else
 				{
 					setClauses.Add("DatePaid = @DatePaid");
@@ -186,7 +132,92 @@ namespace MoneyManager.Data.Repositories
 			return rowsAffected > 0;
 		}
 
-		public async Task<bool> Update(int id, Guid userId, Dictionary<string, object?> updates)
+		private async Task<DbExpense?> GetDb(int id, Guid userId)
+		{
+			var result = default(DbExpense?);
+			await _db.ExecuteReader(
+				"SELECT * FROM Expenses WHERE Expense_I = @Id AND UserId = @UserId",
+				[
+					new SqlParameter("@Id", id),
+					new SqlParameter("@UserId", userId)
+				],
+				async sqlReader =>
+				{
+					if (await sqlReader.ReadAsync())
+						result = await _readerMapper.FromDbReader(sqlReader);
+				});
+			return result;
+		}
+
+		private async Task<List<DbExpense>> ListForUserDb(Guid userId, string? month = null)
+		{
+			var result = new List<DbExpense>();
+			var sql = "SELECT * FROM Expenses WHERE UserId = @UserId";
+			var parameters = new List<SqlParameter>
+			{
+				new SqlParameter("@UserId", userId)
+			};
+
+			if (!string.IsNullOrEmpty(month))
+			{
+				sql += " AND FORMAT(ExpenseDate, 'yyyy-MM') = @Month";
+				parameters.Add(new SqlParameter("@Month", month));
+			}
+
+			sql += " ORDER BY ExpenseDate DESC";
+
+			await _db.ExecuteReader(sql, parameters, async sqlReader =>
+			{
+				while (await sqlReader.ReadAsync())
+					result.Add(await _readerMapper.FromDbReader(sqlReader));
+			});
+			return result;
+		}
+
+		private async Task<int> SaveDb(Guid userId, DbExpense expense)
+		{
+			if (expense.Expense_I == 0)
+			{
+				var sql = @"INSERT INTO Expenses (ExpenseDate, Expense, Amount, PaymentMethod, Category, DatePaid, UserId, CreatedDate)
+							VALUES (@ExpenseDate, @Expense, @Amount, @PaymentMethod, @Category, @DatePaid, @UserId, @CreatedDate);
+							SELECT CAST(SCOPE_IDENTITY() as int);";
+
+				var scalar = await _db.ExecuteScalar(sql, [
+					new SqlParameter("@ExpenseDate", expense.ExpenseDate),
+					new SqlParameter("@Expense", expense.Expense),
+					new SqlParameter("@Amount", expense.Amount),
+					new SqlParameter("@PaymentMethod", (object?)expense.PaymentMethod ?? DBNull.Value),
+					new SqlParameter("@Category", (object?)expense.Category ?? DBNull.Value),
+					new SqlParameter("@DatePaid", (object?)expense.DatePaid ?? DBNull.Value),
+					new SqlParameter("@UserId", userId),
+					new SqlParameter("@CreatedDate", DateTime.UtcNow)
+				]);
+
+				return scalar != null ? Convert.ToInt32(scalar) : 0;
+			}
+
+			var updateSql = @"UPDATE Expenses 
+				SET ExpenseDate = @ExpenseDate, Expense = @Expense, Amount = @Amount, 
+					PaymentMethod = @PaymentMethod, Category = @Category, DatePaid = @DatePaid, 
+					ModifiedDate = @ModifiedDate
+				WHERE Expense_I = @Id AND UserId = @UserId";
+
+			await _db.ExecuteNonQuery(updateSql, [
+				new SqlParameter("@Id", expense.Expense_I),
+				new SqlParameter("@ExpenseDate", expense.ExpenseDate),
+				new SqlParameter("@Expense", expense.Expense),
+				new SqlParameter("@Amount", expense.Amount),
+				new SqlParameter("@PaymentMethod", (object?)expense.PaymentMethod ?? DBNull.Value),
+				new SqlParameter("@Category", (object?)expense.Category ?? DBNull.Value),
+				new SqlParameter("@DatePaid", (object?)expense.DatePaid ?? DBNull.Value),
+				new SqlParameter("@ModifiedDate", DateTime.UtcNow),
+				new SqlParameter("@UserId", userId)
+			]);
+
+			return expense.Expense_I;
+		}
+
+		private async Task<bool> UpdateDb(int id, Guid userId, Dictionary<string, object?> updates)
 		{
 			if (!updates.Any())
 				return false;
@@ -236,9 +267,7 @@ namespace MoneyManager.Data.Repositories
 			if (updates.ContainsKey("DatePaid"))
 			{
 				if (updates["DatePaid"] == null)
-				{
 					setClauses.Add("DatePaid = NULL");
-				}
 				else
 				{
 					setClauses.Add("DatePaid = @DatePaid");

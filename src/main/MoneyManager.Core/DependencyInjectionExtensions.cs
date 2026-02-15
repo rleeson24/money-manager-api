@@ -1,4 +1,4 @@
-using MoneyManager.Core.Mappers;
+using MoneyManager.Core.Repositories;
 using MoneyManager.Core.UseCases.Categories;
 using MoneyManager.Core.UseCases.Expenses;
 using MoneyManager.Core.UseCases.PaymentMethods;
@@ -11,12 +11,7 @@ namespace MoneyManager.Core
 	{
 		public static IServiceCollection AddCoreServices(this IServiceCollection services, IConfiguration configuration)
 		{
-			// Mappers
-			services.AddScoped<IExpenseMapper, ExpenseMapper>();
-			services.AddScoped<ICategoryMapper, CategoryMapper>();
-			services.AddScoped<IPaymentMethodMapper, PaymentMethodMapper>();
-
-			// Expense Use Cases
+			// Use cases only; repository implementations are registered by the Data layer
 			services.AddScoped<IGetExpensesUseCase, GetExpensesUseCase>();
 			services.AddScoped<IGetExpenseUseCase, GetExpenseUseCase>();
 			services.AddScoped<ICreateExpenseUseCase, CreateExpenseUseCase>();
@@ -25,11 +20,7 @@ namespace MoneyManager.Core
 			services.AddScoped<IPatchExpenseUseCase, PatchExpenseUseCase>();
 			services.AddScoped<IBulkUpdateExpensesUseCase, BulkUpdateExpensesUseCase>();
 			services.AddScoped<IBulkDeleteExpensesUseCase, BulkDeleteExpensesUseCase>();
-
-			// Category Use Cases
 			services.AddScoped<IGetCategoriesUseCase, GetCategoriesUseCase>();
-
-			// Payment Method Use Cases
 			services.AddScoped<IGetPaymentMethodsUseCase, GetPaymentMethodsUseCase>();
 
 			return services;

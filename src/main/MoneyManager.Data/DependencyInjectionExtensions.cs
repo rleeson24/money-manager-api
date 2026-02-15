@@ -1,3 +1,4 @@
+using MoneyManager.Core.Repositories;
 using MoneyManager.Data.Mappers;
 using MoneyManager.Data.Repositories;
 using MoneyManager.Data.Utilities;
@@ -10,10 +11,15 @@ namespace MoneyManager.Data
 	{
 		public static IServiceCollection AddDataServices(this IServiceCollection services, IConfiguration configuration)
 		{
+			// Reader mappers (SqlDataReader -> Db*)
 			services.AddScoped<IExpenseMapper, ExpenseMapper>();
 			services.AddScoped<ICategoryMapper, CategoryMapper>();
 			services.AddScoped<IPaymentMethodMapper, PaymentMethodMapper>();
 
+			// Domain mapper (DbExpense <-> Core types, internal to Data)
+			services.AddScoped<ExpenseDomainMapper>();
+
+			// Repository implementations satisfy Core interfaces
 			services.AddScoped<IExpenseRepository, ExpenseRepository>();
 			services.AddScoped<ICategoryRepository, CategoryRepository>();
 			services.AddScoped<IPaymentMethodRepository, PaymentMethodRepository>();

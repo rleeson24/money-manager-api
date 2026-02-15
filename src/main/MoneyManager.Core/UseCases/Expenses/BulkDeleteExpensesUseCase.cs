@@ -1,4 +1,4 @@
-using MoneyManager.Data.Repositories;
+using MoneyManager.Core.Repositories;
 using Microsoft.Extensions.Logging;
 
 namespace MoneyManager.Core.UseCases.Expenses

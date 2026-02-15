@@ -1,6 +1,5 @@
 using MoneyManager.Core.Models;
-using MoneyManager.Core.Mappers;
-using MoneyManager.Data.Repositories;
+using MoneyManager.Core.Repositories;
 using Microsoft.Extensions.Logging;
 
 namespace MoneyManager.Core.UseCases.PaymentMethods
@@ -14,21 +13,18 @@ namespace MoneyManager.Core.UseCases.PaymentMethods
 	{
 		private readonly IPaymentMethodRepository _repository;
 		private readonly ILogger<GetPaymentMethodsUseCase> _logger;
-		private readonly IPaymentMethodMapper _mapper;
 
-		public GetPaymentMethodsUseCase(IPaymentMethodRepository repository, ILogger<GetPaymentMethodsUseCase> logger, IPaymentMethodMapper mapper)
+		public GetPaymentMethodsUseCase(IPaymentMethodRepository repository, ILogger<GetPaymentMethodsUseCase> logger)
 		{
 			_repository = repository;
 			_logger = logger;
-			_mapper = mapper;
 		}
 
 		public async Task<IEnumerable<PaymentMethod>?> Execute()
 		{
 			try
 			{
-				var paymentMethods = await _repository.GetAll();
-				return paymentMethods.Select(pm => _mapper.DbToOutput(pm));
+				return await _repository.GetAll();
 			}
 			catch (Exception ex)
 			{

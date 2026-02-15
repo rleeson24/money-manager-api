@@ -100,8 +100,8 @@ builder.Services.AddAuthorization(options =>
 });
 
 services.AddScoped<IResolveUserId, ResolveUserId>();
-services.AddDataServices(builder.Configuration);
 services.AddCoreServices(builder.Configuration);
+services.AddDataServices(builder.Configuration);
 
 var detailedErrorsValue = builder.Configuration.GetValue<bool>("DetailedErrors");
 var app = builder.Build();
