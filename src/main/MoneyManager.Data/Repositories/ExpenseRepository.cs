@@ -1,8 +1,10 @@
 using System.Collections.Generic;
 using System.Linq;
+using MoneyManager.Core;
 using MoneyManager.Core.Models;
 using MoneyManager.Core.Models.Input;
 using MoneyManager.Core.Repositories;
+using MoneyManager.Core.UseCases.Expenses;
 using MoneyManager.Data.Mappers;
 using MoneyManager.Data.Models;
 using MoneyManager.Data.Utilities;
@@ -15,12 +17,14 @@ namespace MoneyManager.Data.Repositories
 		private readonly DbExecutor _db;
 		private readonly IExpenseMapper _readerMapper;
 		private readonly ExpenseDomainMapper _domainMapper;
+		private readonly INowProvider _nowProvider;
 
-		public ExpenseRepository(DbExecutor db, IExpenseMapper readerMapper, ExpenseDomainMapper domainMapper)
+		public ExpenseRepository(DbExecutor db, IExpenseMapper readerMapper, ExpenseDomainMapper domainMapper, INowProvider nowProvider)
 		{
 			_db = db;
 			_readerMapper = readerMapper;
 			_domainMapper = domainMapper;
+			_nowProvider = nowProvider;
 		}
 
 		public async Task<Expense?> Get(int id, Guid userId)
@@ -77,20 +81,41 @@ namespace MoneyManager.Data.Repositories
 			return await Get(id, userId);
 		}
 
-		public async Task<Expense?> Update(int id, Guid userId, Expense expense)
+		public async Task<UpdateExpenseResult> Update(int id, Guid userId, Expense expense)
 		{
 			var existing = await GetDb(id, userId);
-			if (existing == null) return null;
+			if (existing == null) return UpdateExpenseResult.NotFound();
+			// Optimistic concurrency: only update if ModifiedDateTime matches
+			if (existing.ModifiedDate != expense.ModifiedDateTime)
+			{
+				var current = _domainMapper.ToExpense(existing);
+				return current != null ? UpdateExpenseResult.Conflict(current) : UpdateExpenseResult.NotFound();
+			}
 			_domainMapper.Update(existing, expense);
-			await SaveDb(userId, existing);
-			return await Get(id, userId);
+			var rowsAffected = await SaveDb(userId, existing, expense.ModifiedDateTime);
+			if (rowsAffected == 0)
+			{
+				var current = _domainMapper.ToExpense(existing);
+				return current != null ? UpdateExpenseResult.Conflict(current) : UpdateExpenseResult.NotFound();
+			}
+			var updated = await Get(id, userId);
+			return updated != null ? UpdateExpenseResult.Success(updated) : UpdateExpenseResult.NotFound();
 		}
 
-		public async Task<Expense?> Patch(int id, Guid userId, Dictionary<string, object?> updates)
+		public async Task<UpdateExpenseResult> Patch(int id, Guid userId, Dictionary<string, object?> updates, DateTime? expectedModifiedDateTime)
 		{
-			var success = await UpdateDb(id, userId, updates);
-			if (!success) return null;
-			return await Get(id, userId);
+			// Don't persist timestamp fields as column updates
+			var updatesCopy = new Dictionary<string, object?>(updates);
+			updatesCopy.Remove("ModifiedDateTime");
+			updatesCopy.Remove("CreatedDateTime");
+			var success = await UpdateDb(id, userId, updatesCopy, expectedModifiedDateTime);
+			if (!success)
+			{
+				var current = await Get(id, userId);
+				return current != null ? UpdateExpenseResult.Conflict(current) : UpdateExpenseResult.NotFound();
+			}
+			var updated = await Get(id, userId);
+			return updated != null ? UpdateExpenseResult.Success(updated) : UpdateExpenseResult.NotFound();
 		}
 
 		public async Task<bool> Delete(int id, Guid userId)
@@ -146,7 +171,7 @@ namespace MoneyManager.Data.Repositories
 				return false;
 
 			setClauses.Add("ModifiedDate = @ModifiedDate");
-			parameters.Add(new SqlParameter("@ModifiedDate", DateTime.UtcNow));
+			parameters.Add(new SqlParameter("@ModifiedDate", _nowProvider.UtcNow));
 
 			var sql = $"UPDATE Expenses SET {string.Join(", ", setClauses)} WHERE Expense_I IN ({idList}) AND UserId = @UserId";
 
@@ -210,14 +235,15 @@ namespace MoneyManager.Data.Repositories
 			return result;
 		}
 
-		private async Task<int> SaveDb(Guid userId, DbExpense expense)
+		private async Task<int> SaveDb(Guid userId, DbExpense expense, DateTime? expectedModifiedDateTime = null)
 		{
 			if (expense.Expense_I == 0)
 			{
-				var sql = @"INSERT INTO Expenses (ExpenseDate, Expense, Amount, PaymentMethod, Category, DatePaid, UserId, CreatedDate)
-							VALUES (@ExpenseDate, @Expense, @Amount, @PaymentMethod, @Category, @DatePaid, @UserId, @CreatedDate);
+				var sql = @"INSERT INTO Expenses (ExpenseDate, Expense, Amount, PaymentMethod, Category, DatePaid, UserId, CreatedDate, ModifiedDate)
+							VALUES (@ExpenseDate, @Expense, @Amount, @PaymentMethod, @Category, @DatePaid, @UserId, @CreatedDate, @ModifiedDate);
 							SELECT CAST(SCOPE_IDENTITY() as int);";
 
+				var now = _nowProvider.UtcNow;
 				var scalar = await _db.ExecuteScalar(sql, [
 					new SqlParameter("@ExpenseDate", expense.ExpenseDate),
 					new SqlParameter("@Expense", expense.Expense),
@@ -226,19 +252,22 @@ namespace MoneyManager.Data.Repositories
 					new SqlParameter("@Category", (object?)expense.Category ?? DBNull.Value),
 					new SqlParameter("@DatePaid", (object?)expense.DatePaid ?? DBNull.Value),
 					new SqlParameter("@UserId", userId),
-					new SqlParameter("@CreatedDate", DateTime.UtcNow)
+					new SqlParameter("@CreatedDate", now),
+					new SqlParameter("@ModifiedDate", now)
 				]);
 
 				return scalar != null ? Convert.ToInt32(scalar) : 0;
 			}
 
+			// Optimistic concurrency: only update if ModifiedDate matches
 			var updateSql = @"UPDATE Expenses 
 				SET ExpenseDate = @ExpenseDate, Expense = @Expense, Amount = @Amount, 
 					PaymentMethod = @PaymentMethod, Category = @Category, DatePaid = @DatePaid, 
 					ModifiedDate = @ModifiedDate
-				WHERE Expense_I = @Id AND UserId = @UserId";
+				WHERE Expense_I = @Id AND UserId = @UserId AND ModifiedDate = @ExpectedModifiedDate";
 
-			await _db.ExecuteNonQuery(updateSql, [
+			var parameters = new List<SqlParameter>
+			{
 				new SqlParameter("@Id", expense.Expense_I),
 				new SqlParameter("@ExpenseDate", expense.ExpenseDate),
 				new SqlParameter("@Expense", expense.Expense),
@@ -246,14 +275,16 @@ namespace MoneyManager.Data.Repositories
 				new SqlParameter("@PaymentMethod", (object?)expense.PaymentMethod ?? DBNull.Value),
 				new SqlParameter("@Category", (object?)expense.Category ?? DBNull.Value),
 				new SqlParameter("@DatePaid", (object?)expense.DatePaid ?? DBNull.Value),
-				new SqlParameter("@ModifiedDate", DateTime.UtcNow),
-				new SqlParameter("@UserId", userId)
-			]);
+				new SqlParameter("@ModifiedDate", _nowProvider.UtcNow),
+				new SqlParameter("@UserId", userId),
+				new SqlParameter("@ExpectedModifiedDate", (object?)expectedModifiedDateTime ?? DBNull.Value)
+			};
 
-			return expense.Expense_I;
+			var rowsAffected = await _db.ExecuteNonQuery(updateSql, parameters);
+			return rowsAffected;
 		}
 
-		private async Task<bool> UpdateDb(int id, Guid userId, Dictionary<string, object?> updates)
+		private async Task<bool> UpdateDb(int id, Guid userId, Dictionary<string, object?> updates, DateTime? expectedModifiedDateTime = null)
 		{
 			if (!updates.Any())
 				return false;
@@ -315,9 +346,15 @@ namespace MoneyManager.Data.Repositories
 				return false;
 
 			setClauses.Add("ModifiedDate = @ModifiedDate");
-			parameters.Add(new SqlParameter("@ModifiedDate", DateTime.UtcNow));
+			parameters.Add(new SqlParameter("@ModifiedDate", _nowProvider.UtcNow));
 
-			var sql = $"UPDATE Expenses SET {string.Join(", ", setClauses)} WHERE Expense_I = @Id AND UserId = @UserId";
+			var whereConcurrency = "";
+			if (expectedModifiedDateTime.HasValue)
+			{
+				whereConcurrency = " AND ModifiedDate = @ExpectedModifiedDate";
+				parameters.Add(new SqlParameter("@ExpectedModifiedDate", expectedModifiedDateTime.Value));
+			}
+			var sql = $"UPDATE Expenses SET {string.Join(", ", setClauses)} WHERE Expense_I = @Id AND UserId = @UserId{whereConcurrency}";
 
 			var rowsAffected = await _db.ExecuteNonQuery(sql, parameters);
 			return rowsAffected > 0;

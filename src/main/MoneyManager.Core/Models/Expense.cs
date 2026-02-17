@@ -12,5 +12,7 @@ namespace MoneyManager.Core.Models
 		public int? PaymentMethod { get; set; }
 		public string? Category { get; set; }
 		public DateTime? DatePaid { get; set; }
+		public DateTime CreatedDateTime { get; set; }
+		public DateTime ModifiedDateTime { get; set; }
 	}
 }

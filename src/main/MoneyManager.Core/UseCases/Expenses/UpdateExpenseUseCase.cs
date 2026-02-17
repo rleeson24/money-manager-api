@@ -6,7 +6,7 @@ namespace MoneyManager.Core.UseCases.Expenses
 {
 	public interface IUpdateExpenseUseCase
 	{
-		Task<Expense?> Execute(int id, Guid userId, Expense expense);
+		Task<UpdateExpenseResult> Execute(int id, Guid userId, Expense expense);
 	}
 
 	public class UpdateExpenseUseCase : IUpdateExpenseUseCase
@@ -20,7 +20,7 @@ namespace MoneyManager.Core.UseCases.Expenses
 			_logger = logger;
 		}
 
-		public async Task<Expense?> Execute(int id, Guid userId, Expense expense)
+		public async Task<UpdateExpenseResult> Execute(int id, Guid userId, Expense expense)
 		{
 			try
 			{
@@ -29,7 +29,7 @@ namespace MoneyManager.Core.UseCases.Expenses
 			catch (Exception ex)
 			{
 				_logger.LogError(ex, "An error occurred updating expense {ExpenseId}", id);
-				return null;
+				return UpdateExpenseResult.NotFound();
 			}
 		}
 	}

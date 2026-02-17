@@ -1,3 +1,4 @@
+using MoneyManager.Core;
 using MoneyManager.Core.Models;
 using MoneyManager.Core.Models.Input;
 using MoneyManager.Data.Models;
@@ -9,6 +10,13 @@ namespace MoneyManager.Data.Mappers
 	/// </summary>
 	public class ExpenseDomainMapper
 	{
+		private readonly INowProvider _nowProvider;
+
+		public ExpenseDomainMapper(INowProvider nowProvider)
+		{
+			_nowProvider = nowProvider;
+		}
+
 		internal MoneyManager.Core.Models.Expense ToExpense(DbExpense db)
 		{
 			return new MoneyManager.Core.Models.Expense
@@ -19,7 +27,9 @@ namespace MoneyManager.Data.Mappers
 				Amount = db.Amount,
 				PaymentMethod = db.PaymentMethod,
 				Category = db.Category,
-				DatePaid = db.DatePaid
+				DatePaid = db.DatePaid,
+				CreatedDateTime = db.CreatedDate,
+				ModifiedDateTime = db.ModifiedDate
 			};
 		}
 
@@ -34,7 +44,7 @@ namespace MoneyManager.Data.Mappers
 				Category = model.Category,
 				DatePaid = model.DatePaid,
 				UserId = userId,
-				CreatedDate = DateTime.UtcNow
+				CreatedDate = _nowProvider.UtcNow
 			};
 		}
 
@@ -46,7 +56,7 @@ namespace MoneyManager.Data.Mappers
 			existing.PaymentMethod = model.PaymentMethod;
 			existing.Category = model.Category;
 			existing.DatePaid = model.DatePaid;
-			existing.ModifiedDate = DateTime.UtcNow;
+			existing.ModifiedDate = _nowProvider.UtcNow;
 		}
 
 		internal void Update(DbExpense existing, MoneyManager.Core.Models.Expense expense)
@@ -57,7 +67,7 @@ namespace MoneyManager.Data.Mappers
 			existing.PaymentMethod = expense.PaymentMethod;
 			existing.Category = expense.Category;
 			existing.DatePaid = expense.DatePaid;
-			existing.ModifiedDate = DateTime.UtcNow;
+			existing.ModifiedDate = _nowProvider.UtcNow;
 		}
 	}
 }

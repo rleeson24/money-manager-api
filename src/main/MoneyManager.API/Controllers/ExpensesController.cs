@@ -85,11 +85,11 @@ namespace MoneyManager.API.Controllers
 		{
 			var userId = _resolveUserId.Resolve(User);
 
-			var expense = await updateExpenseUseCase.Execute(id, userId.Value, model);
-			if (expense != null)
-			{
-				return Ok(expense);
-			}
+			var result = await updateExpenseUseCase.Execute(id, userId.Value, model);
+			if (result.IsSuccess)
+				return Ok(result.Updated);
+			if (result.IsConflict)
+				return Conflict(result.ConflictCurrent);
 			return NotFound();
 		}
 
@@ -102,10 +102,21 @@ namespace MoneyManager.API.Controllers
 			var userId = _resolveUserId.Resolve(User);
 
 			var updates = new Dictionary<string, object?>();
+			DateTime? expectedModifiedDateTime = null;
 			foreach (var prop in jsonElement.EnumerateObject())
 			{
 				var key = prop.Name;
 				var value = prop.Value;
+
+				// Used for optimistic concurrency; not a column update
+				if (key == "ModifiedDateTime")
+				{
+					expectedModifiedDateTime = ParseDateTimeFromElement(value);
+					continue;
+				}
+				// Never persist CreatedDateTime from PATCH body
+				if (key == "CreatedDateTime")
+					continue;
 
 				if (value.ValueKind == JsonValueKind.Null)
 				{
@@ -142,12 +153,20 @@ namespace MoneyManager.API.Controllers
 				}
 			}
 
-			var expense = await patchExpenseUseCase.Execute(id, userId.Value, updates);
-			if (expense != null)
-			{
-				return Ok(expense);
-			}
+			var result = await patchExpenseUseCase.Execute(id, userId.Value, updates, expectedModifiedDateTime);
+			if (result.IsSuccess)
+				return Ok(result.Updated);
+			if (result.IsConflict)
+				return Conflict(result.ConflictCurrent);
 			return NotFound();
+		}
+
+		private static DateTime? ParseDateTimeFromElement(JsonElement value)
+		{
+			if (value.ValueKind == JsonValueKind.Null) return null;
+			if (value.ValueKind == JsonValueKind.String && value.GetString() is { } s && DateTime.TryParse(s, out var d))
+				return d;
+			return null;
 		}
 
 		[HttpDelete("{id}")]

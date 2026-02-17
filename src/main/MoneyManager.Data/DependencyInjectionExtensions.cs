@@ -1,3 +1,4 @@
+using MoneyManager.Core;
 using MoneyManager.Core.Repositories;
 using MoneyManager.Data.Mappers;
 using MoneyManager.Data.Repositories;
@@ -11,6 +12,8 @@ namespace MoneyManager.Data
 	{
 		public static IServiceCollection AddDataServices(this IServiceCollection services, IConfiguration configuration)
 		{
+			services.AddSingleton<INowProvider, SystemNowProvider>();
+
 			// Reader mappers (SqlDataReader -> Db*)
 			services.AddScoped<IExpenseMapper, ExpenseMapper>();
 			services.AddScoped<ICategoryMapper, CategoryMapper>();

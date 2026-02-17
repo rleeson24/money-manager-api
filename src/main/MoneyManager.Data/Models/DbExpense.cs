@@ -11,6 +11,6 @@ namespace MoneyManager.Data.Models
 		public DateTime? DatePaid { get; set; }
 		public Guid UserId { get; set; }
 		public DateTime CreatedDate { get; set; }
-		public DateTime? ModifiedDate { get; set; }
+		public DateTime ModifiedDate { get; set; }
 	}
 }
