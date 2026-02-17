@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using MoneyManager.Core.Models;
 using MoneyManager.Core.Repositories;
 using Microsoft.Extensions.Logging;
@@ -6,7 +7,8 @@ namespace MoneyManager.Core.UseCases.Expenses
 {
 	public interface IGetExpensesUseCase
 	{
-		Task<IEnumerable<Expense>?> Execute(Guid userId, string? month = null);
+		Task<IReadOnlyList<Expense>?> Execute(Guid userId, string? month = null);
+		Task<IReadOnlyList<Expense>?> ExecuteWithFilters(Guid userId, int? paymentMethod = null, bool? datePaidNull = null);
 	}
 
 	public class GetExpensesUseCase : IGetExpensesUseCase
@@ -20,7 +22,7 @@ namespace MoneyManager.Core.UseCases.Expenses
 			_logger = logger;
 		}
 
-		public async Task<IEnumerable<Expense>?> Execute(Guid userId, string? month = null)
+		public async Task<IReadOnlyList<Expense>?> Execute(Guid userId, string? month = null)
 		{
 			try
 			{
@@ -29,6 +31,19 @@ namespace MoneyManager.Core.UseCases.Expenses
 			catch (Exception ex)
 			{
 				_logger.LogError(ex, "An error occurred fetching expenses");
+				return null;
+			}
+		}
+
+		public async Task<IReadOnlyList<Expense>?> ExecuteWithFilters(Guid userId, int? paymentMethod = null, bool? datePaidNull = null)
+		{
+			try
+			{
+				return await _repository.ListForUserWithFilters(userId, paymentMethod, datePaidNull);
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "An error occurred fetching expenses with filters");
 				return null;
 			}
 		}

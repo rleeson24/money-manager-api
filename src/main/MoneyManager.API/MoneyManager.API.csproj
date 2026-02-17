@@ -19,6 +19,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\..\MoneyManager.ServiceDefaults\MoneyManager.ServiceDefaults.csproj" />
     <ProjectReference Include="..\MoneyManager.Core\MoneyManager.Core.csproj" />
     <ProjectReference Include="..\MoneyManager.Data\MoneyManager.Data.csproj" />
   </ItemGroup>

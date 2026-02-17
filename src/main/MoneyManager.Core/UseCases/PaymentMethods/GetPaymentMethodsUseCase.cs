@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using MoneyManager.Core.Models;
 using MoneyManager.Core.Repositories;
 using Microsoft.Extensions.Logging;
@@ -6,7 +7,7 @@ namespace MoneyManager.Core.UseCases.PaymentMethods
 {
 	public interface IGetPaymentMethodsUseCase
 	{
-		Task<IEnumerable<PaymentMethod>?> Execute();
+		Task<IReadOnlyList<PaymentMethod>?> Execute();
 	}
 
 	public class GetPaymentMethodsUseCase : IGetPaymentMethodsUseCase
@@ -20,7 +21,7 @@ namespace MoneyManager.Core.UseCases.PaymentMethods
 			_logger = logger;
 		}
 
-		public async Task<IEnumerable<PaymentMethod>?> Execute()
+		public async Task<IReadOnlyList<PaymentMethod>?> Execute()
 		{
 			try
 			{

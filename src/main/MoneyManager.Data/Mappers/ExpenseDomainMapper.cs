@@ -48,5 +48,16 @@ namespace MoneyManager.Data.Mappers
 			existing.DatePaid = model.DatePaid;
 			existing.ModifiedDate = DateTime.UtcNow;
 		}
+
+		internal void Update(DbExpense existing, MoneyManager.Core.Models.Expense expense)
+		{
+			existing.ExpenseDate = expense.ExpenseDate;
+			existing.Expense = expense.ExpenseDescription;
+			existing.Amount = expense.Amount;
+			existing.PaymentMethod = expense.PaymentMethod;
+			existing.Category = expense.Category;
+			existing.DatePaid = expense.DatePaid;
+			existing.ModifiedDate = DateTime.UtcNow;
+		}
 	}
 }

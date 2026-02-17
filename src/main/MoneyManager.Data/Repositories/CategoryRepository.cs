@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+using System.Linq;
 using MoneyManager.Core.Models;
 using MoneyManager.Core.Repositories;
 using MoneyManager.Data.Mappers;
@@ -17,7 +19,7 @@ namespace MoneyManager.Data.Repositories
 			_readerMapper = readerMapper;
 		}
 
-		public async Task<IEnumerable<Category>> GetAll()
+		public async Task<IReadOnlyList<Category>> GetAll()
 		{
 			var result = new List<DbCategory>();
 			await _db.ExecuteReader("SELECT * FROM Categories ORDER BY Name", [],
@@ -30,7 +32,7 @@ namespace MoneyManager.Data.Repositories
 			{
 				Category_I = db.Category_I,
 				Name = db.Name
-			});
+			}).ToList();
 		}
 	}
 }

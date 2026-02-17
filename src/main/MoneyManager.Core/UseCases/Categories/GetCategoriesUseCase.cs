@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using MoneyManager.Core.Models;
 using MoneyManager.Core.Repositories;
 using Microsoft.Extensions.Logging;
@@ -6,7 +7,7 @@ namespace MoneyManager.Core.UseCases.Categories
 {
 	public interface IGetCategoriesUseCase
 	{
-		Task<IEnumerable<Category>?> Execute();
+		Task<IReadOnlyList<Category>?> Execute();
 	}
 
 	public class GetCategoriesUseCase : IGetCategoriesUseCase
@@ -20,7 +21,7 @@ namespace MoneyManager.Core.UseCases.Categories
 			_logger = logger;
 		}
 
-		public async Task<IEnumerable<Category>?> Execute()
+		public async Task<IReadOnlyList<Category>?> Execute()
 		{
 			try
 			{

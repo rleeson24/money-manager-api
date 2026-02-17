@@ -14,6 +14,8 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.AddServiceDefaults();
 var services = builder.Services;
 
 builder.Configuration
@@ -105,6 +107,8 @@ services.AddDataServices(builder.Configuration);
 
 var detailedErrorsValue = builder.Configuration.GetValue<bool>("DetailedErrors");
 var app = builder.Build();
+
+app.MapDefaultEndpoints();
 
 // Startup log
 app.Logger.LogInformation("=== Application starting ===");

@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+using System.Linq;
 using MoneyManager.Core.Models;
 using MoneyManager.Core.Models.Input;
 using MoneyManager.Core.Repositories;
@@ -27,10 +29,44 @@ namespace MoneyManager.Data.Repositories
 			return db != null ? _domainMapper.ToExpense(db) : null;
 		}
 
-		public async Task<IEnumerable<Expense>> ListForUser(Guid userId, string? month = null)
+		public async Task<IReadOnlyList<Expense>> ListForUser(Guid userId, string? month = null)
 		{
 			var list = await ListForUserDb(userId, month);
-			return list.Select(_domainMapper.ToExpense);
+			return list.Select(_domainMapper.ToExpense).ToList();
+		}
+
+		
+
+		public async Task<IReadOnlyList<Expense>> ListForUserWithFilters(Guid userId, int? paymentMethod = null, bool? datePaidNull = null)
+		{
+			var result = new List<DbExpense>();
+			var sql = "SELECT * FROM Expenses WHERE UserId = @UserId";
+			var parameters = new List<SqlParameter>
+			{
+				new SqlParameter("@UserId", userId)
+			};
+
+			if (paymentMethod.HasValue)
+			{
+				sql += " AND PaymentMethod = @PaymentMethod";
+				parameters.Add(new SqlParameter("@PaymentMethod", paymentMethod.Value));
+			}
+
+			if (datePaidNull == true)
+			{
+				sql += " AND DatePaid IS NULL";
+			}
+
+			sql += " ORDER BY ExpenseDate DESC";
+
+			await _db.ExecuteReader(sql, parameters, async sqlReader =>
+			{
+				while (await sqlReader.ReadAsync())
+				{
+					result.Add(await _readerMapper.FromDbReader(sqlReader));
+				}
+			});
+			return result.Select(_domainMapper.ToExpense).ToList();
 		}
 
 		public async Task<Expense?> Create(Guid userId, CreateExpenseModel model)
@@ -41,11 +77,11 @@ namespace MoneyManager.Data.Repositories
 			return await Get(id, userId);
 		}
 
-		public async Task<Expense?> Update(int id, Guid userId, CreateExpenseModel model)
+		public async Task<Expense?> Update(int id, Guid userId, Expense expense)
 		{
 			var existing = await GetDb(id, userId);
 			if (existing == null) return null;
-			_domainMapper.Update(existing, model);
+			_domainMapper.Update(existing, expense);
 			await SaveDb(userId, existing);
 			return await Get(id, userId);
 		}

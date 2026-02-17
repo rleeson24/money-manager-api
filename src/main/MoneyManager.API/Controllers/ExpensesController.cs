@@ -1,6 +1,8 @@
+using System.Collections.Generic;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MoneyManager.API.Utilities;
+using MoneyManager.Core.Models;
 using MoneyManager.Core.Models.Input;
 using MoneyManager.Core.UseCases.Expenses;
 using System.Text.Json;
@@ -22,15 +24,22 @@ namespace MoneyManager.API.Controllers
 		[HttpGet]
 		public async Task<IActionResult> GetExpenses(
 			[FromServices] IGetExpensesUseCase getExpensesUseCase,
-			[FromQuery] string? month = null)
+			[FromQuery] string? month = null,
+			[FromQuery] int? paymentMethod = null,
+			[FromQuery] bool? datePaidNull = null)
 		{
 			var userId = _resolveUserId.Resolve(User);
-			if (userId == null)
+
+			IReadOnlyList<Expense>? expenses;
+			if (paymentMethod.HasValue || datePaidNull.HasValue)
 			{
-				return Unauthorized();
+				expenses = await getExpensesUseCase.ExecuteWithFilters(userId.Value, paymentMethod, datePaidNull);
+			}
+			else
+			{
+				expenses = await getExpensesUseCase.Execute(userId.Value, month);
 			}
 
-			var expenses = await getExpensesUseCase.Execute(userId.Value, month);
 			if (expenses != null)
 			{
 				return Ok(expenses);
@@ -44,10 +53,6 @@ namespace MoneyManager.API.Controllers
 			int id)
 		{
 			var userId = _resolveUserId.Resolve(User);
-			if (userId == null)
-			{
-				return Unauthorized();
-			}
 
 			var expense = await getExpenseUseCase.Execute(id, userId.Value);
 			if (expense != null)
@@ -63,10 +68,6 @@ namespace MoneyManager.API.Controllers
 			[FromBody] CreateExpenseModel model)
 		{
 			var userId = _resolveUserId.Resolve(User);
-			if (userId == null)
-			{
-				return Unauthorized();
-			}
 
 			var expense = await createExpenseUseCase.Execute(userId.Value, model);
 			if (expense != null)
@@ -80,13 +81,9 @@ namespace MoneyManager.API.Controllers
 		public async Task<IActionResult> UpdateExpense(
 			[FromServices] IUpdateExpenseUseCase updateExpenseUseCase,
 			int id,
-			[FromBody] CreateExpenseModel model)
+			[FromBody] Expense model)
 		{
 			var userId = _resolveUserId.Resolve(User);
-			if (userId == null)
-			{
-				return Unauthorized();
-			}
 
 			var expense = await updateExpenseUseCase.Execute(id, userId.Value, model);
 			if (expense != null)
@@ -103,10 +100,6 @@ namespace MoneyManager.API.Controllers
 			[FromBody] JsonElement jsonElement)
 		{
 			var userId = _resolveUserId.Resolve(User);
-			if (userId == null)
-			{
-				return Unauthorized();
-			}
 
 			var updates = new Dictionary<string, object?>();
 			foreach (var prop in jsonElement.EnumerateObject())
@@ -163,10 +156,6 @@ namespace MoneyManager.API.Controllers
 			int id)
 		{
 			var userId = _resolveUserId.Resolve(User);
-			if (userId == null)
-			{
-				return Unauthorized();
-			}
 
 			var success = await deleteExpenseUseCase.Execute(id, userId.Value);
 			if (success)
@@ -182,10 +171,6 @@ namespace MoneyManager.API.Controllers
 			[FromBody] BulkUpdateRequest request)
 		{
 			var userId = _resolveUserId.Resolve(User);
-			if (userId == null)
-			{
-				return Unauthorized();
-			}
 
 			var updates = new Dictionary<string, object?>();
 			if (request.ExpenseDate != null)
@@ -213,10 +198,6 @@ namespace MoneyManager.API.Controllers
 			[FromBody] BulkDeleteRequest request)
 		{
 			var userId = _resolveUserId.Resolve(User);
-			if (userId == null)
-			{
-				return Unauthorized();
-			}
 
 			var success = await bulkDeleteExpensesUseCase.Execute(request.Ids, userId.Value);
 			if (success)

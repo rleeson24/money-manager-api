@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+using System.Linq;
 using MoneyManager.Core.Models;
 using MoneyManager.Core.Repositories;
 using MoneyManager.Data.Mappers;
@@ -17,7 +19,7 @@ namespace MoneyManager.Data.Repositories
 			_readerMapper = readerMapper;
 		}
 
-		public async Task<IEnumerable<PaymentMethod>> GetAll()
+		public async Task<IReadOnlyList<PaymentMethod>> GetAll()
 		{
 			var result = new List<DbPaymentMethod>();
 			await _db.ExecuteReader("SELECT * FROM PaymentMethods ORDER BY PaymentMethod", [],
@@ -30,7 +32,7 @@ namespace MoneyManager.Data.Repositories
 			{
 				ID = db.ID,
 				PaymentMethodName = db.PaymentMethod
-			});
+			}).ToList();
 		}
 	}
 }
