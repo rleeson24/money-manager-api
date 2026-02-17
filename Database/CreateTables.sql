@@ -54,7 +54,7 @@ BEGIN
         [DatePaid] DATETIME2 NULL,
         [UserId] UNIQUEIDENTIFIER NOT NULL,
         [CreatedDate] DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
-        [ModifiedDate] DATETIME2 NULL,
+        [ModifiedDate] DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
         CONSTRAINT [FK_Expenses_PaymentMethods] FOREIGN KEY ([PaymentMethod]) REFERENCES [dbo].[PaymentMethods]([ID])
     );
     
