@@ -5,6 +5,8 @@ using MoneyManager.Core.Repositories;
 using MoneyManager.Data.Mappers;
 using MoneyManager.Data.Models;
 using MoneyManager.Data.Utilities;
+using Microsoft.Extensions.Options;
+using DataOptions = MoneyManager.Data.DataOptions;
 
 namespace MoneyManager.Data.Repositories
 {
@@ -12,14 +14,24 @@ namespace MoneyManager.Data.Repositories
 	{
 		private readonly DbExecutor _db;
 		private readonly ICategoryMapper _readerMapper;
+		private readonly DataOptions _dataOptions;
 
-		public CategoryRepository(DbExecutor db, ICategoryMapper readerMapper)
+		public CategoryRepository(DbExecutor db, ICategoryMapper readerMapper, IOptions<DataOptions> dataOptions)
 		{
 			_db = db;
 			_readerMapper = readerMapper;
+			_dataOptions = dataOptions.Value;
 		}
 
-		public async Task<IReadOnlyList<Category>> GetAll()
+		public Task<IReadOnlyList<Category>> GetAll()
+		{
+			if (_dataOptions.UseMockData)
+				return Task.FromResult(MockData.Categories);
+
+			return GetAllFromDb();
+		}
+
+		private async Task<IReadOnlyList<Category>> GetAllFromDb()
 		{
 			var result = new List<DbCategory>();
 			await _db.ExecuteReader("SELECT * FROM Categories ORDER BY Name", [],

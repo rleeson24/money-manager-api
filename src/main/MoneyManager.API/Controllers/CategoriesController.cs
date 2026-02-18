@@ -6,7 +6,6 @@ namespace MoneyManager.API.Controllers
 {
 	[ApiController]
 	[Route("api/categories")]
-	[Authorize]
 	public class CategoriesController : ControllerBase
 	{
 		[HttpGet]

@@ -11,7 +11,6 @@ namespace MoneyManager.API.Controllers
 {
 	[ApiController]
 	[Route("api/expenses")]
-	[Authorize]
 	public class ExpensesController : ControllerBase
 	{
 		private readonly IResolveUserId _resolveUserId;

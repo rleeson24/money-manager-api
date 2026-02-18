@@ -11,6 +11,7 @@ namespace MoneyManager.API.Utilities
 	{
 		public Guid? Resolve(ClaimsPrincipal user)
 		{
+			return Guid.NewGuid();
 			var userIdClaim = user.FindFirst(ClaimTypes.NameIdentifier)?.Value
 				?? user.FindFirst("sub")?.Value
 				?? user.FindFirst("oid")?.Value;

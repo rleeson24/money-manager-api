@@ -39,6 +39,7 @@ builder.WebHost.ConfigureKestrel(options =>
 builder.Services.AddSingleton<IHttpContextAccessor, HttpContextAccessor>();
 
 var allowedOrigins = builder.Configuration["AllowedOrigins"]?.Split(';', StringSplitOptions.RemoveEmptyEntries) ?? Array.Empty<string>();
+Console.WriteLine($"Allowed origins: {string.Join(", ", allowedOrigins)}");
 builder.Services.AddCors(options =>
 {
 	options.AddPolicy("Default",

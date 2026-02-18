@@ -6,7 +6,6 @@ namespace MoneyManager.API.Controllers
 {
 	[ApiController]
 	[Route("api/payment-methods")]
-	[Authorize]
 	public class PaymentMethodsController : ControllerBase
 	{
 		[HttpGet]
