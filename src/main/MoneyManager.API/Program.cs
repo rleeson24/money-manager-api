@@ -87,11 +87,11 @@ builder.Services.AddApplicationInsightsTelemetry(options =>
 	options.EnableDebugLogger = true;
 });
 
-builder.Logging.AddApplicationInsights(
-	configureTelemetryConfiguration: cfg => cfg.ConnectionString =
-		builder.Configuration["ApplicationInsights:ConnectionString"] ??
-		builder.Configuration["APPLICATIONINSIGHTS_CONNECTION_STRING"],
-	configureApplicationInsightsLoggerOptions: o => o.IncludeScopes = true);
+//builder.Logging.AddApplicationInsights(
+//	configureTelemetryConfiguration: cfg => cfg.ConnectionString =
+//		builder.Configuration["ApplicationInsights:ConnectionString"] ??
+//		builder.Configuration["APPLICATIONINSIGHTS_CONNECTION_STRING"],
+//	configureApplicationInsightsLoggerOptions: o => o.IncludeScopes = true);
 
 builder.Logging.AddAzureWebAppDiagnostics();
 builder.Logging.AddConsole();
