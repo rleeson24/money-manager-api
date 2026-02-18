@@ -10,7 +10,7 @@ namespace MoneyManager.Core.Models
 		public string ExpenseDescription { get; set; } = string.Empty;
 		public decimal Amount { get; set; }
 		public int? PaymentMethod { get; set; }
-		public string? Category { get; set; }
+		public int? Category { get; set; }
 		public DateTime? DatePaid { get; set; }
 		public DateTime CreatedDateTime { get; set; }
 		public DateTime ModifiedDateTime { get; set; }

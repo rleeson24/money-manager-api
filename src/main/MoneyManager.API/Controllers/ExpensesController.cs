@@ -231,7 +231,7 @@ namespace MoneyManager.API.Controllers
 	{
 		public List<int> Ids { get; set; } = new();
 		public DateTime? ExpenseDate { get; set; }
-		public string? Category { get; set; }
+		public int? Category { get; set; }
 		public bool? setCategoryToNull { get; set; }
 		public DateTime? DatePaid { get; set; }
 		public bool? setDatePaidToNull { get; set; }

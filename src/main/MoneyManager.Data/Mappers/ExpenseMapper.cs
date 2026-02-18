@@ -16,7 +16,7 @@ namespace MoneyManager.Data.Mappers
 				Expense = reader.GetString(reader.GetOrdinal("Expense")),
 				Amount = reader.GetDecimal(reader.GetOrdinal("Amount")),
 				PaymentMethod = reader.IsDBNull(paymentMethodOrdinal) ? null : reader.GetInt32(paymentMethodOrdinal),
-				Category = reader.IsDBNull(categoryOrdinal) ? null : reader.GetString(categoryOrdinal),
+				Category = reader.IsDBNull(categoryOrdinal) ? null : reader.GetInt32(categoryOrdinal),
 				DatePaid = reader.IsDBNull(reader.GetOrdinal("DatePaid")) ? null : reader.GetDateTime(reader.GetOrdinal("DatePaid")),
 				UserId = reader.GetGuid(reader.GetOrdinal("UserId")),
 				CreatedDate = reader.GetDateTime(reader.GetOrdinal("CreatedDate")),

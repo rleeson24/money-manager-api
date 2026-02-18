@@ -50,12 +50,13 @@ BEGIN
         [Expense] NVARCHAR(500) NOT NULL,
         [Amount] DECIMAL(18,2) NOT NULL,
         [PaymentMethod] INT NOT NULL,
-        [Category] NVARCHAR(100) NOT NULL,
+        [Category] INT NULL,
         [DatePaid] DATETIME2 NULL,
         [UserId] UNIQUEIDENTIFIER NOT NULL,
         [CreatedDate] DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
         [ModifiedDate] DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
-        CONSTRAINT [FK_Expenses_PaymentMethods] FOREIGN KEY ([PaymentMethod]) REFERENCES [dbo].[PaymentMethods]([ID])
+        CONSTRAINT [FK_Expenses_PaymentMethods] FOREIGN KEY ([PaymentMethod]) REFERENCES [dbo].[PaymentMethods]([ID]),
+        CONSTRAINT [FK_Expenses_Categories] FOREIGN KEY ([Category]) REFERENCES [dbo].[Categories]([Category_I])
     );
     
     -- Create indexes for better query performance
