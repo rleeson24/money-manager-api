@@ -6,7 +6,7 @@ namespace MoneyManager.Core.Models
 	{
 		public int Expense_I { get; set; }
 		public DateTime ExpenseDate { get; set; }
-		[JsonPropertyName("Expense")]
+		[JsonPropertyName("expense")]
 		public string ExpenseDescription { get; set; } = string.Empty;
 		public decimal Amount { get; set; }
 		public int? PaymentMethod { get; set; }
