@@ -17,21 +17,34 @@ namespace MoneyManager.Data
 
 			services.AddSingleton<INowProvider, SystemNowProvider>();
 
-			// Reader mappers (SqlDataReader -> Db*)
+			var dataOptions = configuration.GetSection("Data").Get<DataOptions>() ?? new DataOptions();
+			if (dataOptions.UseInMemoryDatabase)
+			{
+				// In-memory database for development: no SQL Server required.
+				services.AddSingleton<InMemoryStore>();
+				services.AddScoped<IExpenseRepository, InMemoryExpenseRepository>();
+				services.AddScoped<ICategoryRepository, InMemoryCategoryRepository>();
+				services.AddScoped<IPaymentMethodRepository, InMemoryPaymentMethodRepository>();
+				services.AddScoped<IExpenseSplitRepository, InMemoryExpenseSplitRepository>();
+				return services;
+			}
+
+			// SQL Server: reader mappers and repositories
 			services.AddScoped<IExpenseMapper, ExpenseMapper>();
 			services.AddScoped<ICategoryMapper, CategoryMapper>();
 			services.AddScoped<IPaymentMethodMapper, PaymentMethodMapper>();
-
-			// Domain mapper (DbExpense <-> Core types, internal to Data)
+			services.AddScoped<IExpenseSplitMapper, ExpenseSplitMapper>();
 			services.AddScoped<ExpenseDomainMapper>();
-
-			// Repository implementations satisfy Core interfaces
 			services.AddScoped<IExpenseRepository, ExpenseRepository>();
 			services.AddScoped<ICategoryRepository, CategoryRepository>();
 			services.AddScoped<IPaymentMethodRepository, PaymentMethodRepository>();
+			services.AddScoped<IExpenseSplitRepository, ExpenseSplitRepository>();
 
 			services.AddSingleton<DbExecutor>();
-			services.AddSingleton(sp => new DbConnectionFactory(configuration.GetConnectionString("DefaultConnection") ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.")));
+			var connectionString = configuration.GetConnectionString("DefaultConnection");
+			if (string.IsNullOrEmpty(connectionString))
+				throw new InvalidOperationException("Connection string 'DefaultConnection' not found. For development without SQL Server, set Data:UseInMemoryDatabase to true.");
+			services.AddSingleton(new DbConnectionFactory(connectionString));
 
 			return services;
 		}

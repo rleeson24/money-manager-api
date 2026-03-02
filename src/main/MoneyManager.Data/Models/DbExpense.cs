@@ -12,5 +12,6 @@ namespace MoneyManager.Data.Models
 		public Guid UserId { get; set; }
 		public DateTime CreatedDate { get; set; }
 		public DateTime ModifiedDate { get; set; }
+		public bool IsSplit { get; set; }
 	}
 }

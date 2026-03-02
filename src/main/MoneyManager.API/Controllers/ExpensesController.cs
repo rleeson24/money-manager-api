@@ -5,6 +5,7 @@ using MoneyManager.API.Utilities;
 using MoneyManager.Core.Models;
 using MoneyManager.Core.Models.Input;
 using MoneyManager.Core.UseCases.Expenses;
+using MoneyManager.Core.UseCases.ExpenseSplits;
 using System.Text.Json;
 
 namespace MoneyManager.API.Controllers
@@ -150,6 +151,11 @@ namespace MoneyManager.API.Controllers
 						}
 					}
 				}
+				else if (value.ValueKind == JsonValueKind.True || value.ValueKind == JsonValueKind.False)
+				{
+					var boolKey = key == "isSplit" ? "IsSplit" : key;
+					updates[boolKey] = value.GetBoolean();
+				}
 			}
 
 			var result = await patchExpenseUseCase.Execute(id, userId.Value, updates, expectedModifiedDateTime);
@@ -208,6 +214,72 @@ namespace MoneyManager.API.Controllers
 				return Ok();
 			}
 			return Problem();
+		}
+
+		[HttpGet("split")]
+		public async Task<IActionResult> GetExpenseSplits(
+			[FromServices] IGetExpenseSplitsUseCase getExpenseSplitsUseCase,
+			[FromQuery] int expenseId)
+		{
+			var userId = _resolveUserId.Resolve(User);
+			var splits = await getExpenseSplitsUseCase.Execute(expenseId, userId.Value);
+			return Ok(splits);
+		}
+
+		[HttpPost("split")]
+		public async Task<IActionResult> CreateExpenseSplit(
+			[FromServices] ICreateExpenseSplitUseCase createExpenseSplitUseCase,
+			[FromBody] CreateOrUpdateExpenseSplitModel model)
+		{
+			var userId = _resolveUserId.Resolve(User);
+			var split = await createExpenseSplitUseCase.Execute(userId.Value, model);
+			if (split != null)
+			{
+				return CreatedAtAction(nameof(GetExpenseSplits), new { expenseId = model.Expense_I }, split);
+			}
+			return BadRequest();
+		}
+
+		[HttpPut("split/{id}")]
+		public async Task<IActionResult> UpdateExpenseSplit(
+			[FromServices] IUpdateExpenseSplitUseCase updateExpenseSplitUseCase,
+			int id,
+			[FromBody] CreateOrUpdateExpenseSplitModel model)
+		{
+			var userId = _resolveUserId.Resolve(User);
+			var split = await updateExpenseSplitUseCase.Execute(id, userId.Value, model);
+			if (split != null)
+			{
+				return Ok(split);
+			}
+			return NotFound();
+		}
+
+		[HttpDelete("split/{id}")]
+		public async Task<IActionResult> DeleteExpenseSplit(
+			[FromServices] IDeleteExpenseSplitUseCase deleteExpenseSplitUseCase,
+			int id)
+		{
+			var userId = _resolveUserId.Resolve(User);
+			var success = await deleteExpenseSplitUseCase.Execute(id, userId.Value);
+			if (success)
+			{
+				return NoContent();
+			}
+			return NotFound();
+		}
+
+		[HttpPut("split/replace")]
+		public async Task<IActionResult> ReplaceExpenseSplits(
+			[FromServices] IReplaceExpenseSplitsUseCase replaceExpenseSplitsUseCase,
+			[FromQuery] int expenseId,
+			[FromBody] ReplaceExpenseSplitsRequest request)
+		{
+			var userId = _resolveUserId.Resolve(User);
+			var result = await replaceExpenseSplitsUseCase.Execute(expenseId, userId.Value, request);
+			if (result.IsSuccess)
+				return Ok(result.Splits);
+			return BadRequest(new { error = result.ValidationError });
 		}
 
 		[HttpDelete("bulk")]

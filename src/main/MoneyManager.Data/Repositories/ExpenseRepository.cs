@@ -163,7 +163,8 @@ namespace MoneyManager.Data.Repositories
 					Category = updates.ContainsKey("Category") ? (int?)updates["Category"] : current.Category,
 					DatePaid = updates.ContainsKey("DatePaid") ? (DateTime?)updates["DatePaid"] : current.DatePaid,
 					CreatedDateTime = current.CreatedDateTime,
-					ModifiedDateTime = _nowProvider.UtcNow
+					ModifiedDateTime = _nowProvider.UtcNow,
+					IsSplit = updates.TryGetValue("IsSplit", out var isSplitObj) && isSplitObj is bool isSplitVal ? isSplitVal : current.IsSplit
 				};
 				return await Task.FromResult(UpdateExpenseResult.Success(patched));
 			}
@@ -311,8 +312,8 @@ namespace MoneyManager.Data.Repositories
 		{
 			if (expense.Expense_I == 0)
 			{
-				var sql = @"INSERT INTO Expenses (ExpenseDate, Expense, Amount, PaymentMethod, Category, DatePaid, UserId, CreatedDate, ModifiedDate)
-							VALUES (@ExpenseDate, @Expense, @Amount, @PaymentMethod, @Category, @DatePaid, @UserId, @CreatedDate, @ModifiedDate);
+				var sql = @"INSERT INTO Expenses (ExpenseDate, Expense, Amount, PaymentMethod, Category, DatePaid, UserId, IsSplit, CreatedDate, ModifiedDate)
+							VALUES (@ExpenseDate, @Expense, @Amount, @PaymentMethod, @Category, @DatePaid, @UserId, @IsSplit, @CreatedDate, @ModifiedDate);
 							SELECT CAST(SCOPE_IDENTITY() as int);";
 
 				var now = _nowProvider.UtcNow;
@@ -324,6 +325,7 @@ namespace MoneyManager.Data.Repositories
 					new SqlParameter("@Category", (object?)expense.Category ?? DBNull.Value),
 					new SqlParameter("@DatePaid", (object?)expense.DatePaid ?? DBNull.Value),
 					new SqlParameter("@UserId", userId),
+					new SqlParameter("@IsSplit", expense.IsSplit),
 					new SqlParameter("@CreatedDate", now),
 					new SqlParameter("@ModifiedDate", now)
 				]);
@@ -335,7 +337,7 @@ namespace MoneyManager.Data.Repositories
 			var updateSql = @"UPDATE Expenses 
 				SET ExpenseDate = @ExpenseDate, Expense = @Expense, Amount = @Amount, 
 					PaymentMethod = @PaymentMethod, Category = @Category, DatePaid = @DatePaid, 
-					ModifiedDate = @ModifiedDate
+					IsSplit = @IsSplit, ModifiedDate = @ModifiedDate
 				WHERE Expense_I = @Id AND UserId = @UserId AND ModifiedDate = @ExpectedModifiedDate";
 
 			var parameters = new List<SqlParameter>
@@ -347,6 +349,7 @@ namespace MoneyManager.Data.Repositories
 				new SqlParameter("@PaymentMethod", (object?)expense.PaymentMethod ?? DBNull.Value),
 				new SqlParameter("@Category", (object?)expense.Category ?? DBNull.Value),
 				new SqlParameter("@DatePaid", (object?)expense.DatePaid ?? DBNull.Value),
+				new SqlParameter("@IsSplit", expense.IsSplit),
 				new SqlParameter("@ModifiedDate", _nowProvider.UtcNow),
 				new SqlParameter("@UserId", userId),
 				new SqlParameter("@ExpectedModifiedDate", (object?)expectedModifiedDateTime ?? DBNull.Value)
@@ -412,6 +415,11 @@ namespace MoneyManager.Data.Repositories
 					setClauses.Add("DatePaid = @DatePaid");
 					parameters.Add(new SqlParameter("@DatePaid", updates["DatePaid"]));
 				}
+			}
+			if (updates.ContainsKey("IsSplit"))
+			{
+				setClauses.Add("IsSplit = @IsSplit");
+				parameters.Add(new SqlParameter("@IsSplit", updates["IsSplit"] is bool b && b));
 			}
 
 			if (!setClauses.Any())

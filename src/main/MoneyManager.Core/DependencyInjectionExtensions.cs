@@ -2,6 +2,7 @@ using MoneyManager.Core.Repositories;
 using MoneyManager.Core.UseCases.Categories;
 using MoneyManager.Core.UseCases.Expenses;
 using MoneyManager.Core.UseCases.PaymentMethods;
+using MoneyManager.Core.UseCases.ExpenseSplits;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -22,6 +23,11 @@ namespace MoneyManager.Core
 			services.AddScoped<IBulkDeleteExpensesUseCase, BulkDeleteExpensesUseCase>();
 			services.AddScoped<IGetCategoriesUseCase, GetCategoriesUseCase>();
 			services.AddScoped<IGetPaymentMethodsUseCase, GetPaymentMethodsUseCase>();
+			services.AddScoped<IGetExpenseSplitsUseCase, GetExpenseSplitsUseCase>();
+			services.AddScoped<ICreateExpenseSplitUseCase, CreateExpenseSplitUseCase>();
+			services.AddScoped<IUpdateExpenseSplitUseCase, UpdateExpenseSplitUseCase>();
+			services.AddScoped<IDeleteExpenseSplitUseCase, DeleteExpenseSplitUseCase>();
+			services.AddScoped<IReplaceExpenseSplitsUseCase, ReplaceExpenseSplitsUseCase>();
 
 			return services;
 		}

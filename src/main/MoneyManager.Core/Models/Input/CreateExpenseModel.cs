@@ -8,5 +8,6 @@ namespace MoneyManager.Core.Models.Input
 		public int? PaymentMethod { get; set; }
 		public int? Category { get; set; }
 		public DateTime? DatePaid { get; set; }
+		public bool IsSplit { get; set; }
 	}
 }

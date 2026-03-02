@@ -29,7 +29,8 @@ namespace MoneyManager.Data.Mappers
 				Category = db.Category,
 				DatePaid = db.DatePaid,
 				CreatedDateTime = db.CreatedDate,
-				ModifiedDateTime = db.ModifiedDate
+				ModifiedDateTime = db.ModifiedDate,
+				IsSplit = db.IsSplit
 			};
 		}
 
@@ -44,7 +45,8 @@ namespace MoneyManager.Data.Mappers
 				Category = model.Category,
 				DatePaid = model.DatePaid,
 				UserId = userId,
-				CreatedDate = _nowProvider.UtcNow
+				CreatedDate = _nowProvider.UtcNow,
+				IsSplit = model.IsSplit
 			};
 		}
 
@@ -68,6 +70,7 @@ namespace MoneyManager.Data.Mappers
 			existing.Category = expense.Category;
 			existing.DatePaid = expense.DatePaid;
 			existing.ModifiedDate = _nowProvider.UtcNow;
+			existing.IsSplit = expense.IsSplit;
 		}
 	}
 }

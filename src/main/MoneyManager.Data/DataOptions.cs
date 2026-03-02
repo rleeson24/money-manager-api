@@ -5,10 +5,16 @@ namespace MoneyManager.Data
 	/// </summary>
 	public class DataOptions
 	{
-		/// <summary>
-		/// When true, repositories return mock data instead of querying the database.
-		/// Set via configuration key "Data:UseMockData" or environment variable "Data__UseMockData".
-		/// </summary>
-		public bool UseMockData { get; set; }
-	}
+	/// <summary>
+	/// When true, repositories return mock data instead of querying the database.
+	/// Set via configuration key "Data:UseMockData" or environment variable "Data__UseMockData".
+	/// </summary>
+	public bool UseMockData { get; set; }
+
+	/// <summary>
+	/// When true, use an in-memory database (mutable, seeded from mock data). No SQL Server required.
+	/// Ideal for development. Set "Data:UseInMemoryDatabase" to true in appsettings.Development.json.
+	/// </summary>
+	public bool UseInMemoryDatabase { get; set; }
+}
 }

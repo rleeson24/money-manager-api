@@ -14,5 +14,6 @@ namespace MoneyManager.Core.Models
 		public DateTime? DatePaid { get; set; }
 		public DateTime CreatedDateTime { get; set; }
 		public DateTime ModifiedDateTime { get; set; }
+		public bool IsSplit { get; set; }
 	}
 }

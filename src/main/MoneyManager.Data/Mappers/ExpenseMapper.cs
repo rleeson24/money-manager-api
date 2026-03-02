@@ -20,7 +20,8 @@ namespace MoneyManager.Data.Mappers
 				DatePaid = reader.IsDBNull(reader.GetOrdinal("DatePaid")) ? null : reader.GetDateTime(reader.GetOrdinal("DatePaid")),
 				UserId = reader.GetGuid(reader.GetOrdinal("UserId")),
 				CreatedDate = reader.GetDateTime(reader.GetOrdinal("CreatedDate")),
-				ModifiedDate = reader.GetDateTime(reader.GetOrdinal("ModifiedDate"))
+				ModifiedDate = reader.GetDateTime(reader.GetOrdinal("ModifiedDate")),
+				IsSplit = reader.GetBoolean(reader.GetOrdinal("IsSplit"))
 			};
 		}
 	}
