@@ -25,6 +25,7 @@ namespace MoneyManager.Core.UseCases.Expenses
 		{
 			try
 			{
+				model.CreatedBy ??= userId.ToString();
 				return await _repository.Create(userId, model);
 			}
 			catch (Exception ex)

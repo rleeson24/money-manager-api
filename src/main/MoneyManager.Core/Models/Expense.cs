@@ -15,5 +15,7 @@ namespace MoneyManager.Core.Models
 		public DateTime CreatedDateTime { get; set; }
 		public DateTime ModifiedDateTime { get; set; }
 		public bool IsSplit { get; set; }
+		/// <summary>User ID of the creator. Always set to the current user on create.</summary>
+		public string CreatedBy { get; set; } = string.Empty;
 	}
 }

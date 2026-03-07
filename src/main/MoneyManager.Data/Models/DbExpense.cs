@@ -13,5 +13,7 @@ namespace MoneyManager.Data.Models
 		public DateTime CreatedDate { get; set; }
 		public DateTime ModifiedDate { get; set; }
 		public bool IsSplit { get; set; }
+		/// <summary>User ID of the creator. Always set on create.</summary>
+		public string CreatedBy { get; set; } = string.Empty;
 	}
 }

@@ -4,6 +4,7 @@ using Azure.Security.KeyVault.Secrets;
 using MoneyManager.API.Utilities;
 using MoneyManager.Core;
 using MoneyManager.Data;
+using MoneyManager.Import;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.Identity.Web;
@@ -105,6 +106,7 @@ builder.Services.AddAuthorization(options =>
 services.AddScoped<IResolveUserId, ResolveUserId>();
 services.AddCoreServices(builder.Configuration);
 services.AddDataServices(builder.Configuration);
+builder.Services.AddImportParsers();
 
 var detailedErrorsValue = builder.Configuration.GetValue<bool>("DetailedErrors");
 var app = builder.Build();

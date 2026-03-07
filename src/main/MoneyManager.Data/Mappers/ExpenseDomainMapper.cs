@@ -30,7 +30,8 @@ namespace MoneyManager.Data.Mappers
 				DatePaid = db.DatePaid,
 				CreatedDateTime = db.CreatedDate,
 				ModifiedDateTime = db.ModifiedDate,
-				IsSplit = db.IsSplit
+				IsSplit = db.IsSplit,
+				CreatedBy = db.CreatedBy
 			};
 		}
 
@@ -46,7 +47,8 @@ namespace MoneyManager.Data.Mappers
 				DatePaid = model.DatePaid,
 				UserId = userId,
 				CreatedDate = _nowProvider.UtcNow,
-				IsSplit = model.IsSplit
+				IsSplit = model.IsSplit,
+				CreatedBy = model.CreatedBy ?? userId.ToString()
 			};
 		}
 

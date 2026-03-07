@@ -5,6 +5,6 @@ namespace MoneyManager.Data.Mappers
 {
 	public interface IExpenseMapper
 	{
-		Task<DbExpense> FromDbReader(SqlDataReader reader);
+		ValueTask<DbExpense> FromDbReader(SqlDataReader reader);
 	}
 }

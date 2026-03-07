@@ -64,6 +64,7 @@ BEGIN
         [IsSplit] BIT NOT NULL DEFAULT 0,
         [CreatedDate] DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
         [ModifiedDate] DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
+        [CreatedBy] NVARCHAR(100) NOT NULL,
         CONSTRAINT [FK_Expenses_PaymentMethods] FOREIGN KEY ([PaymentMethod]) REFERENCES [dbo].[PaymentMethods]([ID]),
         CONSTRAINT [FK_Expenses_Categories] FOREIGN KEY ([Category]) REFERENCES [dbo].[Categories]([Category_I])
     );
@@ -79,6 +80,21 @@ IF EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[Expens
    AND COL_LENGTH('dbo.Expenses', 'IsSplit') IS NULL
 BEGIN
     ALTER TABLE [dbo].[Expenses] ADD [IsSplit] BIT NOT NULL DEFAULT 0;
+END
+
+-- Add CreatedBy to existing Expenses table if missing (migration)
+IF EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[Expenses]') AND type in (N'U'))
+   AND COL_LENGTH('dbo.Expenses', 'CreatedBy') IS NULL
+BEGIN
+    ALTER TABLE [dbo].[Expenses] ADD [CreatedBy] NVARCHAR(100) NOT NULL DEFAULT '';
+END
+
+-- Make CreatedBy NOT NULL if it was added as NULL (migration: backfill then alter)
+IF EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[Expenses]') AND type in (N'U'))
+   AND COL_LENGTH('dbo.Expenses', 'CreatedBy') IS NOT NULL
+BEGIN
+    UPDATE [dbo].[Expenses] SET [CreatedBy] = CAST([UserId] AS NVARCHAR(50)) WHERE [CreatedBy] IS NULL;
+    ALTER TABLE [dbo].[Expenses] ALTER COLUMN [CreatedBy] NVARCHAR(100) NOT NULL;
 END
 
 -- Expenses_split Table (splits for parent expenses)

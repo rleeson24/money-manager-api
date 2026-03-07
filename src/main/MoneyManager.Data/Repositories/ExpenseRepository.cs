@@ -114,7 +114,9 @@ namespace MoneyManager.Data.Repositories
 					Category = model.Category,
 					DatePaid = model.DatePaid,
 					CreatedDateTime = now,
-					ModifiedDateTime = now
+					ModifiedDateTime = now,
+					IsSplit = model.IsSplit,
+					CreatedBy = model.CreatedBy
 				});
 			}
 			var db = _domainMapper.ToDbExpense(model, userId);
@@ -266,6 +268,72 @@ namespace MoneyManager.Data.Repositories
 			return rowsAffected > 0;
 		}
 
+		public async Task<IReadOnlyList<Expense>> ListForUserInDateRange(Guid userId, DateTime fromDate, DateTime toDate)
+		{
+			if (_dataOptions.UseMockData)
+			{
+				var list = MockData.Expenses.Where(e => e.ExpenseDate.Date >= fromDate.Date && e.ExpenseDate.Date <= toDate.Date).OrderByDescending(e => e.ExpenseDate).ToList();
+				return await Task.FromResult(list);
+			}
+			var result = new List<DbExpense>();
+			var sql = "SELECT * FROM Expenses WHERE UserId = @UserId AND ExpenseDate >= @FromDate AND ExpenseDate <= @ToDate ORDER BY ExpenseDate DESC";
+			await _db.ExecuteReader(sql, [
+				new SqlParameter("@UserId", userId),
+				new SqlParameter("@FromDate", fromDate.Date),
+				new SqlParameter("@ToDate", toDate.Date)
+			], async sqlReader =>
+			{
+				while (await sqlReader.ReadAsync())
+					result.Add(await _readerMapper.FromDbReader(sqlReader));
+			});
+			return result.Select(_domainMapper.ToExpense).ToList();
+		}
+
+		public async Task<IReadOnlyList<LastImportDatesForPaymentMethod>> GetLastImportDates(Guid userId, IReadOnlyList<int> paymentMethodIds)
+		{
+			if (_dataOptions.UseMockData)
+			{
+				var list = MockData.Expenses.AsEnumerable();
+				var results = new List<LastImportDatesForPaymentMethod>();
+				foreach (var pmId in paymentMethodIds)
+				{
+					var forPm = list.Where(e => e.PaymentMethod == pmId).ToList();
+					results.Add(new LastImportDatesForPaymentMethod
+					{
+						PaymentMethodId = pmId,
+						LatestExpenseDate = forPm.Any() ? forPm.Max(e => e.ExpenseDate) : null,
+						LatestDatePaid = forPm.Where(e => e.DatePaid.HasValue).Any() ? forPm.Where(e => e.DatePaid.HasValue).Max(e => e.DatePaid!.Value) : null
+					});
+				}
+				return await Task.FromResult(results);
+			}
+			if (paymentMethodIds.Count == 0)
+				return Array.Empty<LastImportDatesForPaymentMethod>();
+			var dict = new Dictionary<int, (DateTime? LatestExpenseDate, DateTime? LatestDatePaid)>();
+			foreach (var id in paymentMethodIds)
+				dict[id] = (null, null);
+			var idParams = string.Join(",", paymentMethodIds.Select((_, i) => "@pm" + i));
+			var sql = $"SELECT PaymentMethod, MAX(ExpenseDate) AS LatestExpenseDate, MAX(DatePaid) AS LatestDatePaid FROM Expenses WHERE UserId = @UserId AND PaymentMethod IN ({idParams}) GROUP BY PaymentMethod";
+			var parameters = new List<SqlParameter> { new SqlParameter("@UserId", userId) };
+			for (var i = 0; i < paymentMethodIds.Count; i++)
+				parameters.Add(new SqlParameter("@pm" + i, paymentMethodIds[i]));
+			await _db.ExecuteReader(sql, parameters, async sqlReader =>
+			{
+				while (await sqlReader.ReadAsync())
+				{
+					var pmId = sqlReader.GetInt32(sqlReader.GetOrdinal("PaymentMethod"));
+					var latestExpenseDate = sqlReader.IsDBNull(sqlReader.GetOrdinal("LatestExpenseDate")) ? (DateTime?)null : sqlReader.GetDateTime(sqlReader.GetOrdinal("LatestExpenseDate"));
+					var latestDatePaid = sqlReader.IsDBNull(sqlReader.GetOrdinal("LatestDatePaid")) ? (DateTime?)null : sqlReader.GetDateTime(sqlReader.GetOrdinal("LatestDatePaid"));
+					dict[pmId] = (latestExpenseDate, latestDatePaid);
+				}
+			});
+			return paymentMethodIds.Select(id => new LastImportDatesForPaymentMethod
+			{
+				PaymentMethodId = id,
+				LatestExpenseDate = dict[id].LatestExpenseDate,
+				LatestDatePaid = dict[id].LatestDatePaid
+			}).ToList();
+		}
 		private async Task<DbExpense?> GetDb(int id, Guid userId)
 		{
 			var result = default(DbExpense?);
@@ -312,8 +380,8 @@ namespace MoneyManager.Data.Repositories
 		{
 			if (expense.Expense_I == 0)
 			{
-				var sql = @"INSERT INTO Expenses (ExpenseDate, Expense, Amount, PaymentMethod, Category, DatePaid, UserId, IsSplit, CreatedDate, ModifiedDate)
-							VALUES (@ExpenseDate, @Expense, @Amount, @PaymentMethod, @Category, @DatePaid, @UserId, @IsSplit, @CreatedDate, @ModifiedDate);
+				var sql = @"INSERT INTO Expenses (ExpenseDate, Expense, Amount, PaymentMethod, Category, DatePaid, UserId, IsSplit, CreatedDate, ModifiedDate, CreatedBy)
+							VALUES (@ExpenseDate, @Expense, @Amount, @PaymentMethod, @Category, @DatePaid, @UserId, @IsSplit, @CreatedDate, @ModifiedDate, @CreatedBy);
 							SELECT CAST(SCOPE_IDENTITY() as int);";
 
 				var now = _nowProvider.UtcNow;
@@ -327,7 +395,8 @@ namespace MoneyManager.Data.Repositories
 					new SqlParameter("@UserId", userId),
 					new SqlParameter("@IsSplit", expense.IsSplit),
 					new SqlParameter("@CreatedDate", now),
-					new SqlParameter("@ModifiedDate", now)
+					new SqlParameter("@ModifiedDate", now),
+					new SqlParameter("@CreatedBy", expense.CreatedBy)
 				]);
 
 				return scalar != null ? Convert.ToInt32(scalar) : 0;

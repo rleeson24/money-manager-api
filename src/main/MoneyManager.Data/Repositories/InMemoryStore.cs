@@ -88,7 +88,8 @@ namespace MoneyManager.Data.Repositories
 					DatePaid = expense.DatePaid,
 					CreatedDateTime = expense.CreatedDateTime,
 					ModifiedDateTime = expense.ModifiedDateTime,
-					IsSplit = expense.IsSplit
+					IsSplit = expense.IsSplit,
+					CreatedBy = expense.CreatedBy
 				};
 				_expenses.Add(added);
 				return added;

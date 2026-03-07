@@ -5,10 +5,12 @@ namespace MoneyManager.Data.Mappers
 {
 	public class ExpenseMapper : IExpenseMapper
 	{
-		public async Task<DbExpense> FromDbReader(SqlDataReader reader)
+		public async ValueTask<DbExpense> FromDbReader(SqlDataReader reader)
 		{
 			var paymentMethodOrdinal = reader.GetOrdinal("PaymentMethod");
 			var categoryOrdinal = reader.GetOrdinal("Category");
+			var createdByOrdinal = reader.GetOrdinal("CreatedBy");
+			var createdBy = reader.GetString(createdByOrdinal);
 			return new DbExpense
 			{
 				Expense_I = reader.GetInt32(reader.GetOrdinal("Expense_I")),
@@ -21,7 +23,8 @@ namespace MoneyManager.Data.Mappers
 				UserId = reader.GetGuid(reader.GetOrdinal("UserId")),
 				CreatedDate = reader.GetDateTime(reader.GetOrdinal("CreatedDate")),
 				ModifiedDate = reader.GetDateTime(reader.GetOrdinal("ModifiedDate")),
-				IsSplit = reader.GetBoolean(reader.GetOrdinal("IsSplit"))
+				IsSplit = reader.GetBoolean(reader.GetOrdinal("IsSplit")),
+				CreatedBy = createdBy
 			};
 		}
 	}

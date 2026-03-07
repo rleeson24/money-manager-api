@@ -23,6 +23,7 @@
     <ProjectReference Include="..\..\..\MoneyManager.ServiceDefaults\MoneyManager.ServiceDefaults.csproj" />
     <ProjectReference Include="..\MoneyManager.Core\MoneyManager.Core.csproj" />
     <ProjectReference Include="..\MoneyManager.Data\MoneyManager.Data.csproj" />
+    <ProjectReference Include="..\MoneyManager.Import\MoneyManager.Import.csproj" />
   </ItemGroup>
 
 </Project>

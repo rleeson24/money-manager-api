@@ -49,7 +49,8 @@ namespace MoneyManager.Data.Repositories
 				DatePaid = model.DatePaid,
 				CreatedDateTime = now,
 				ModifiedDateTime = now,
-				IsSplit = model.IsSplit
+				IsSplit = model.IsSplit,
+				CreatedBy = model.CreatedBy ?? userId.ToString()
 			};
 			var added = _store.AddExpense(expense);
 			return Task.FromResult<Expense?>(added);
@@ -72,7 +73,8 @@ namespace MoneyManager.Data.Repositories
 				DatePaid = expense.DatePaid,
 				CreatedDateTime = existing.CreatedDateTime,
 				ModifiedDateTime = expense.ModifiedDateTime,
-				IsSplit = expense.IsSplit
+				IsSplit = expense.IsSplit,
+				CreatedBy = existing.CreatedBy
 			};
 			if (!_store.UpdateExpense(id, toSave))
 				return Task.FromResult(UpdateExpenseResult.NotFound());
@@ -96,7 +98,8 @@ namespace MoneyManager.Data.Repositories
 				DatePaid = updates.ContainsKey("DatePaid") ? (DateTime?)updates["DatePaid"] : current.DatePaid,
 				CreatedDateTime = current.CreatedDateTime,
 				ModifiedDateTime = _nowProvider.UtcNow,
-				IsSplit = updates.TryGetValue("IsSplit", out var isSplitObj) && isSplitObj is bool isSplitVal ? isSplitVal : current.IsSplit
+				IsSplit = updates.TryGetValue("IsSplit", out var isSplitObj) && isSplitObj is bool isSplitVal ? isSplitVal : current.IsSplit,
+				CreatedBy = current.CreatedBy
 			};
 			_store.UpdateExpense(id, patched);
 			return Task.FromResult(UpdateExpenseResult.Success(patched));
@@ -130,6 +133,30 @@ namespace MoneyManager.Data.Repositories
 			if (idList.Count == 0) return Task.FromResult(false);
 			var removed = _store.RemoveExpenses(idList);
 			return Task.FromResult(removed > 0);
+		}
+
+		public Task<IReadOnlyList<Expense>> ListForUserInDateRange(Guid userId, DateTime fromDate, DateTime toDate)
+		{
+			var all = _store.GetExpensesFiltered(null, null, null);
+			var list = all.Where(e => e.ExpenseDate.Date >= fromDate.Date && e.ExpenseDate.Date <= toDate.Date).OrderByDescending(e => e.ExpenseDate).ToList();
+			return Task.FromResult<IReadOnlyList<Expense>>(list);
+		}
+
+		public Task<IReadOnlyList<LastImportDatesForPaymentMethod>> GetLastImportDates(Guid userId, IReadOnlyList<int> paymentMethodIds)
+		{
+			var all = _store.GetExpensesFiltered(null, null, null);
+			var results = new List<LastImportDatesForPaymentMethod>();
+			foreach (var pmId in paymentMethodIds)
+			{
+				var forPm = all.Where(e => e.PaymentMethod == pmId).ToList();
+				results.Add(new LastImportDatesForPaymentMethod
+				{
+					PaymentMethodId = pmId,
+					LatestExpenseDate = forPm.Any() ? forPm.Max(e => e.ExpenseDate) : null,
+					LatestDatePaid = forPm.Where(e => e.DatePaid.HasValue).Any() ? forPm.Where(e => e.DatePaid.HasValue).Max(e => e.DatePaid!.Value) : null
+				});
+			}
+			return Task.FromResult<IReadOnlyList<LastImportDatesForPaymentMethod>>(results);
 		}
 	}
 }

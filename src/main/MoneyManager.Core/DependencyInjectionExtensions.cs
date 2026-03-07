@@ -3,6 +3,7 @@ using MoneyManager.Core.UseCases.Categories;
 using MoneyManager.Core.UseCases.Expenses;
 using MoneyManager.Core.UseCases.PaymentMethods;
 using MoneyManager.Core.UseCases.ExpenseSplits;
+using MoneyManager.Core.UseCases.Import;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -28,6 +29,9 @@ namespace MoneyManager.Core
 			services.AddScoped<IUpdateExpenseSplitUseCase, UpdateExpenseSplitUseCase>();
 			services.AddScoped<IDeleteExpenseSplitUseCase, DeleteExpenseSplitUseCase>();
 			services.AddScoped<IReplaceExpenseSplitsUseCase, ReplaceExpenseSplitsUseCase>();
+
+			services.AddScoped<IImportFromFileUseCase, ImportFromFileUseCase>();
+			services.AddScoped<IGetLastImportDatesUseCase, GetLastImportDatesUseCase>();
 
 			return services;
 		}

@@ -24,9 +24,9 @@ namespace MoneyManager.Data.Repositories
 
 		public static IReadOnlyList<Category> Categories { get; } = new List<Category>
 		{
-			new Category { Category_I = 1, Name = "Other Expenses (Pare)" },
+			new Category { Category_I = 1, Name = "Other Expenses (Parent)" },
 			new Category { Category_I = 2, Name = "Dining/Eating Out" },
-			new Category { Category_I = 3, Name = "Special Occasions (P)" },
+			new Category { Category_I = 3, Name = "Special Occasions (Parent)" },
 			new Category { Category_I = 4, Name = "Gas - Auto" },
 			new Category { Category_I = 5, Name = "Health" },
 			new Category { Category_I = 6, Name = "Groceries (Parent)" },
@@ -46,14 +46,13 @@ namespace MoneyManager.Data.Repositories
 
 		public static IReadOnlyList<PaymentMethod> PaymentMethods { get; } = new List<PaymentMethod>
 		{
-			new PaymentMethod { ID = 1, PaymentMethodName = "Discover" },
-			new PaymentMethod { ID = 2, PaymentMethodName = "Visa" },
-			new PaymentMethod { ID = 3, PaymentMethodName = "Mastercard" },
-			new PaymentMethod { ID = 4, PaymentMethodName = "American Express" },
-			new PaymentMethod { ID = 5, PaymentMethodName = "Debit Card" },
-			new PaymentMethod { ID = 6, PaymentMethodName = "Cash" },
-			new PaymentMethod { ID = 7, PaymentMethodName = "Bank Transfer" },
-			new PaymentMethod { ID = 8, PaymentMethodName = "PayPal" },
+			new PaymentMethod { ID = 1, PaymentMethodName = "Discover Checking" },
+			new PaymentMethod { ID = 2, PaymentMethodName = "Discover Savings" },
+			new PaymentMethod { ID = 3, PaymentMethodName = "Discover Credit" },
+			new PaymentMethod { ID = 4, PaymentMethodName = "Arvest Checking" },
+			new PaymentMethod { ID = 5, PaymentMethodName = "ABFCU Checking" },
+			new PaymentMethod { ID = 6, PaymentMethodName = "ABFCU Savings" },
+			new PaymentMethod { ID = 7, PaymentMethodName = "Bank Transfer" }
 		};
 
 		public static List<ExpenseSplit> ExpenseSplits { get; } = new List<ExpenseSplit>();
