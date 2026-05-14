@@ -3,6 +3,8 @@ using Azure.Identity;
 using Azure.Security.KeyVault.Secrets;
 using MoneyManager.API.Utilities;
 using MoneyManager.Core;
+using MoneyManager.Core.UseCases.Categories;
+using MoneyManager.Core.UseCases.PaymentMethods;
 using MoneyManager.Data;
 using MoneyManager.Import;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -43,13 +45,27 @@ var allowedOrigins = builder.Configuration["AllowedOrigins"]?.Split(';', StringS
 Console.WriteLine($"Allowed origins: {string.Join(", ", allowedOrigins)}");
 builder.Services.AddCors(options =>
 {
-	options.AddPolicy("Default",
-		builder => builder
-			.WithOrigins(allowedOrigins)
-			.AllowAnyMethod()
-			.AllowAnyHeader()
-			.AllowCredentials()
-		);
+	options.AddPolicy("Default", policy =>
+	{
+		if (allowedOrigins.Length > 0)
+		{
+			policy.WithOrigins(allowedOrigins)
+				  .AllowAnyMethod()
+				  .AllowAnyHeader()
+				  .AllowCredentials();
+		}
+		else if (builder.Environment.IsEnvironment("Local") || builder.Environment.IsDevelopment())
+		{
+			// Development/local: be permissive (do not allow credentials with AllowAnyOrigin)
+			policy.AllowAnyOrigin()
+				  .AllowAnyMethod()
+				  .AllowAnyHeader();
+		}
+		else
+		{
+			throw new InvalidOperationException("CORS: 'AllowedOrigins' is not configured for non-local environment.");
+		}
+	});
 });
 
 // Add services to the container.
@@ -77,17 +93,28 @@ builder.Services.AddControllers()
 	.AddJsonOptions(opts => 
 		opts.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 
+// Minimal APIs use HttpJsonOptions for serialization
+builder.Services.ConfigureHttpJsonOptions(opts =>
+	opts.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));
+
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+builder.Services.AddSwaggerGen(c =>
+{
+	c.OperationFilter<FormFileOperationFilter>();
+});
 builder.Services.AddHttpClient();
 
-// Logging
-builder.Services.AddApplicationInsightsTelemetry(options =>
+// Logging — only enable Application Insights when a connection string is configured
+var applicationInsightsConnectionString = builder.Configuration["ApplicationInsights:ConnectionString"]
+	?? builder.Configuration["APPLICATIONINSIGHTS_CONNECTION_STRING"];
+if (!string.IsNullOrWhiteSpace(applicationInsightsConnectionString))
 {
-	options.EnableAdaptiveSampling = false;     // 100% sampling
-	options.EnableDebugLogger = true;
-});
+	builder.Services.AddApplicationInsightsTelemetry(options =>
+	{
+		options.ConnectionString = applicationInsightsConnectionString;
+	});
+}
 
 //builder.Logging.AddApplicationInsights(
 //	configureTelemetryConfiguration: cfg => cfg.ConnectionString =
@@ -110,8 +137,6 @@ builder.Services.AddImportParsers();
 
 var detailedErrorsValue = builder.Configuration.GetValue<bool>("DetailedErrors");
 var app = builder.Build();
-
-app.MapDefaultEndpoints();
 
 // Startup log
 app.Logger.LogInformation("=== Application starting ===");
@@ -174,6 +199,22 @@ if (app.Environment.IsDevelopment())
 app.UseCors("Default");
 app.UseAuthentication();
 app.UseAuthorization();
+
+app.MapDefaultEndpoints();
+
+// Minimal API endpoints (replacing CategoriesController and PaymentMethodsController)
+app.MapGet("/api/categories", async (IGetCategoriesUseCase getCategoriesUseCase) =>
+{
+	var categories = await getCategoriesUseCase.Execute();
+	return categories != null ? Results.Ok(categories) : Results.Problem();
+}).WithTags("Categories");
+
+app.MapGet("/api/payment-methods", async (IGetPaymentMethodsUseCase getPaymentMethodsUseCase) =>
+{
+	var paymentMethods = await getPaymentMethodsUseCase.Execute();
+	return paymentMethods != null ? Results.Ok(paymentMethods) : Results.Problem();
+}).WithTags("Payment Methods");
+
 app.MapControllers();
 
 app.Run();
