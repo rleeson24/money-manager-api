@@ -2,6 +2,7 @@ using MoneyManager.Core;
 using MoneyManager.Core.Repositories;
 using MoneyManager.Data.Mappers;
 using MoneyManager.Data.Repositories;
+using MoneyManager.Data.Bootstrap;
 using MoneyManager.Data.Utilities;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -18,7 +19,9 @@ namespace MoneyManager.Data
 			services.AddSingleton<INowProvider, SystemNowProvider>();
 
 			var dataOptions = configuration.GetSection("Data").Get<DataOptions>() ?? new DataOptions();
-			if (dataOptions.UseInMemoryDatabase)
+			var connectionString = configuration.GetConnectionString("DefaultConnection");
+			// Aspire (and other hosts) inject a connection string; prefer SQL when present even if UseInMemoryDatabase is true in appsettings.
+			if (dataOptions.UseInMemoryDatabase && string.IsNullOrEmpty(connectionString))
 			{
 				// In-memory database for development: no SQL Server required.
 				services.AddSingleton<InMemoryStore>();
@@ -41,10 +44,14 @@ namespace MoneyManager.Data
 			services.AddScoped<IExpenseSplitRepository, ExpenseSplitRepository>();
 
 			services.AddSingleton<DbExecutor>();
-			var connectionString = configuration.GetConnectionString("DefaultConnection");
 			if (string.IsNullOrEmpty(connectionString))
 				throw new InvalidOperationException("Connection string 'DefaultConnection' not found. For development without SQL Server, set Data:UseInMemoryDatabase to true.");
+			if (AspireOrchestrationDetector.IsRunningUnderAspire(configuration))
+				connectionString = SqlConnectionStringHelper.ApplyAspireSqlContainerDefaults(connectionString);
 			services.AddSingleton(new DbConnectionFactory(connectionString));
+
+			if (AspireOrchestrationDetector.IsRunningUnderAspire(configuration))
+				services.AddHostedService<AspireSqlDevelopmentBootstrap>();
 
 			return services;
 		}

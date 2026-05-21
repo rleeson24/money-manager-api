@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Globalization;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MoneyManager.API.Utilities;
@@ -139,7 +140,7 @@ namespace MoneyManager.API.Controllers
 				}
 				else if (value.ValueKind == JsonValueKind.Number)
 				{
-					if (key == "Amount" || key == "PaymentMethod")
+					if (key == "Amount" || key == "PaymentMethod" || key == "Category")
 					{
 						if (value.TryGetInt32(out var intValue))
 						{
@@ -169,8 +170,12 @@ namespace MoneyManager.API.Controllers
 		private static DateTime? ParseDateTimeFromElement(JsonElement value)
 		{
 			if (value.ValueKind == JsonValueKind.Null) return null;
-			if (value.ValueKind == JsonValueKind.String && value.GetString() is { } s && DateTime.TryParse(s, out var d))
-				return d;
+			if (value.ValueKind == JsonValueKind.String && value.GetString() is { } s)
+			{
+				return DateTime.TryParse(s, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var d)
+					? d
+					: null;
+			}
 			return null;
 		}
 

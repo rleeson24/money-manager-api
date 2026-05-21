@@ -57,7 +57,7 @@ BEGIN
         [ExpenseDate] DATETIME2 NOT NULL,
         [Expense] NVARCHAR(500) NOT NULL,
         [Amount] DECIMAL(18,2) NOT NULL,
-        [PaymentMethod] INT NOT NULL,
+        [PaymentMethod] INT NULL,
         [Category] INT NULL,
         [DatePaid] DATETIME2 NULL,
         [UserId] UNIQUEIDENTIFIER NOT NULL,
@@ -73,6 +73,13 @@ BEGIN
     CREATE INDEX [IX_Expenses_UserId] ON [dbo].[Expenses]([UserId]);
     CREATE INDEX [IX_Expenses_ExpenseDate] ON [dbo].[Expenses]([ExpenseDate]);
     CREATE INDEX [IX_Expenses_Category] ON [dbo].[Expenses]([Category]);
+END
+
+-- Allow NULL PaymentMethod on Expenses (optional payment method)
+IF EXISTS (SELECT 1 FROM sys.columns
+    WHERE object_id = OBJECT_ID(N'dbo.Expenses') AND name = N'PaymentMethod' AND is_nullable = 0)
+BEGIN
+    ALTER TABLE [dbo].[Expenses] ALTER COLUMN [PaymentMethod] INT NULL;
 END
 
 -- Add IsSplit to existing Expenses table if missing (migration)

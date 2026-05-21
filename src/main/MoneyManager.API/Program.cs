@@ -1,3 +1,4 @@
+using Aspire.Microsoft.Data.SqlClient;
 using Azure.Extensions.AspNetCore.Configuration.Secrets;
 using Azure.Identity;
 using Azure.Security.KeyVault.Secrets;
@@ -19,6 +20,7 @@ using System.Text.Json.Serialization;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.AddServiceDefaults();
+builder.AddSqlServerClient("DefaultConnection");
 var services = builder.Services;
 
 builder.Configuration

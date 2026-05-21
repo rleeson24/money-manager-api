@@ -116,7 +116,7 @@ namespace MoneyManager.Data.Repositories
 					CreatedDateTime = now,
 					ModifiedDateTime = now,
 					IsSplit = model.IsSplit,
-					CreatedBy = model.CreatedBy
+					CreatedBy = model.CreatedBy ?? string.Empty
 				});
 			}
 			var db = _domainMapper.ToDbExpense(model, userId);
@@ -132,8 +132,8 @@ namespace MoneyManager.Data.Repositories
 
 			var existing = await GetDb(id, userId);
 			if (existing == null) return UpdateExpenseResult.NotFound();
-			// Optimistic concurrency: only update if ModifiedDateTime matches
-			if (existing.ModifiedDate != expense.ModifiedDateTime)
+			// Optimistic concurrency: compare at millisecond resolution (clients/JSON often drop sub-ms fractional seconds).
+			if (!ModifiedUtcMillisEqual(existing.ModifiedDate, expense.ModifiedDateTime))
 			{
 				var current = _domainMapper.ToExpense(existing);
 				return current != null ? UpdateExpenseResult.Conflict(current) : UpdateExpenseResult.NotFound();
@@ -407,7 +407,8 @@ namespace MoneyManager.Data.Repositories
 				SET ExpenseDate = @ExpenseDate, Expense = @Expense, Amount = @Amount, 
 					PaymentMethod = @PaymentMethod, Category = @Category, DatePaid = @DatePaid, 
 					IsSplit = @IsSplit, ModifiedDate = @ModifiedDate
-				WHERE Expense_I = @Id AND UserId = @UserId AND ModifiedDate = @ExpectedModifiedDate";
+				WHERE Expense_I = @Id AND UserId = @UserId
+					AND CAST(ModifiedDate AS datetime2(3)) = CAST(@ExpectedModifiedDate AS datetime2(3))";
 
 			var parameters = new List<SqlParameter>
 			{
@@ -500,13 +501,32 @@ namespace MoneyManager.Data.Repositories
 			var whereConcurrency = "";
 			if (expectedModifiedDateTime.HasValue)
 			{
-				whereConcurrency = " AND ModifiedDate = @ExpectedModifiedDate";
+				whereConcurrency = " AND CAST(ModifiedDate AS datetime2(3)) = CAST(@ExpectedModifiedDate AS datetime2(3))";
 				parameters.Add(new SqlParameter("@ExpectedModifiedDate", expectedModifiedDateTime.Value));
 			}
 			var sql = $"UPDATE Expenses SET {string.Join(", ", setClauses)} WHERE Expense_I = @Id AND UserId = @UserId{whereConcurrency}";
 
 			var rowsAffected = await _db.ExecuteNonQuery(sql, parameters);
 			return rowsAffected > 0;
+		}
+
+		/// <summary>
+		/// SqlDataReader reports <see cref="DateTime.Kind"/> Unspecified for <c>datetime2</c>; we store UTC (<see cref="INowProvider.UtcNow"/>).
+		/// Align to whole milliseconds so API round-trips (e.g. JSON with 3 fractional digits) match DB values that keep higher precision.
+		/// </summary>
+		private static bool ModifiedUtcMillisEqual(DateTime fromDbUnspecifiedUtcWallClock, DateTime fromClientUtcOrUnspecified)
+		{
+			var a = NormalizeModifiedUtcTicks(fromDbUnspecifiedUtcWallClock);
+			var b = NormalizeModifiedUtcTicks(fromClientUtcOrUnspecified);
+			return a == b;
+		}
+
+		private static long NormalizeModifiedUtcTicks(DateTime value)
+		{
+			var utcWall =
+				value.Kind == DateTimeKind.Unspecified ? DateTime.SpecifyKind(value, DateTimeKind.Utc) : value.ToUniversalTime();
+			var ticks = utcWall.Ticks - (utcWall.Ticks % TimeSpan.TicksPerMillisecond);
+			return ticks;
 		}
 	}
 }

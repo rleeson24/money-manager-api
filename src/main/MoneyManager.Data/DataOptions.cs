@@ -16,5 +16,17 @@ namespace MoneyManager.Data
 	/// Ideal for development. Set "Data:UseInMemoryDatabase" to true in appsettings.Development.json.
 	/// </summary>
 	public bool UseInMemoryDatabase { get; set; }
-}
+
+	/// <summary>
+	/// User ID assigned to expenses inserted by Aspire SQL bootstrap (see <c>Data:AspireSeedUserId</c>).
+	/// List/filter APIs scope by authenticated user; use this GUID for local testing against seeded SQL data.
+	/// </summary>
+	public string AspireSeedUserId { get; set; } = "11111111-1111-1111-1111-111111111111";
+
+	/// <summary>
+	/// Set to true by the Aspire AppHost so the API can detect orchestration without relying on DCP env vars alone.
+	/// Do not set to true in appsettings when running the API outside Aspire unless you intend that behavior.
+	/// </summary>
+	public bool AspireOrchestrated { get; set; }
+	}
 }
