@@ -1,3 +1,5 @@
+using MoneyManager.Core.Models;
+
 namespace MoneyManager.Core.Import
 {
 	/// <summary>
@@ -5,10 +7,10 @@ namespace MoneyManager.Core.Import
 	/// </summary>
 	public interface ITransactionFileParser
 	{
-	/// <summary>
-	/// Parse file content. Format is "OFX", "QFX", or "CSV".
-	/// When format is CSV, sourceKey is used to select the account-specific parser (e.g. "Arvest", "Discover Credit").
-	/// </summary>
-	Task<IReadOnlyList<Models.BankTransaction>> ParseAsync(Stream fileContent, string format, string? sourceKey = null, CancellationToken cancellationToken = default);
+		/// <summary>
+		/// Parse file content. Format is "OFX", "QFX", or "CSV".
+		/// When format is CSV, importSource selects the account-specific parser.
+		/// </summary>
+		Task<IReadOnlyList<BankTransaction>> ParseAsync(Stream fileContent, string format, ImportSource? importSource = null, CancellationToken cancellationToken = default);
 	}
 }

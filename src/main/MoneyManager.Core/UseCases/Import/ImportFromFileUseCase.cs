@@ -9,7 +9,7 @@ namespace MoneyManager.Core.UseCases.Import
 {
 	public interface IImportFromFileUseCase
 	{
-		Task<ImportResult> ExecuteAsync(Guid userId, Stream fileContent, string format, string sourceKey, int paymentMethodId, CancellationToken cancellationToken = default);
+		Task<ImportResult> ExecuteAsync(Guid userId, Stream fileContent, string format, ImportSource importSource, int paymentMethodId, CancellationToken cancellationToken = default);
 	}
 
 	/// <summary>
@@ -26,13 +26,13 @@ namespace MoneyManager.Core.UseCases.Import
 			_expenseRepository = expenseRepository;
 		}
 
-		public async Task<ImportResult> ExecuteAsync(Guid userId, Stream fileContent, string format, string sourceKey, int paymentMethodId, CancellationToken cancellationToken = default)
+		public async Task<ImportResult> ExecuteAsync(Guid userId, Stream fileContent, string format, ImportSource importSource, int paymentMethodId, CancellationToken cancellationToken = default)
 		{
 			var errors = new List<string>();
 			IReadOnlyList<BankTransaction> transactions;
 			try
 			{
-				transactions = await _parser.ParseAsync(fileContent, format, sourceKey, cancellationToken);
+				transactions = await _parser.ParseAsync(fileContent, format, importSource, cancellationToken);
 			}
 			catch (Exception ex)
 			{
@@ -40,8 +40,8 @@ namespace MoneyManager.Core.UseCases.Import
 				return new ImportResult { Errors = errors };
 			}
 
-			var accountType = MapSourceKeyToAccountType(sourceKey);
-			var normalized = transactions.Select(t => ApplySignRules(t, accountType)).ToList();
+			var accountType = importSource.ToAccountType();
+			var normalized = transactions.Select(t => ApplySignRules(t, accountType, importSource)).ToList();
 
 			if (normalized.Count == 0)
 				return new ImportResult { Errors = errors };
@@ -96,16 +96,14 @@ namespace MoneyManager.Core.UseCases.Import
 			).ToList();
 		}
 
-		private static BankAccountType MapSourceKeyToAccountType(string sourceKey)
+		private static BankTransaction ApplySignRules(BankTransaction t, BankAccountType accountType, ImportSource importSource)
 		{
-			if (string.Equals(sourceKey, "Discover Credit", StringComparison.OrdinalIgnoreCase))
-				return BankAccountType.CreditCard;
-			return BankAccountType.Depository;
-		}
+			if (importSource == ImportSource.DiscoverSavings || importSource == ImportSource.DiscoverChecking || importSource == ImportSource.AbfcuSavings || importSource == ImportSource.AbfcuChecking)
+			{
+				// Depository: debits positive, credits negative (typical CSV: DEBIT has negative amount).
+				t.Amount = -t.Amount;
+			}
 
-		private static BankTransaction ApplySignRules(BankTransaction t, BankAccountType accountType)
-		{
-			// Depository: debits negative, credits positive (typical OFX: DEBIT has negative amount).
 			// CreditCard: purchases positive, payments/returns negative.
 			// Parser may already output correct signs; leave as-is for now.
 			return t;

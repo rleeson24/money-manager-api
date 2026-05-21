@@ -49,7 +49,7 @@ namespace MoneyManager.Data.Repositories
 				var list = MockData.Expenses.AsEnumerable();
 				if (!string.IsNullOrEmpty(month))
 					list = list.Where(e => e.ExpenseDate.ToString("yyyy-MM") == month);
-				return await Task.FromResult(list.OrderByDescending(e => e.ExpenseDate).ToList());
+				return await Task.FromResult(list.OrderBy(e => e.ExpenseDate).ToList());
 			}
 			var listDb = await ListForUserDb(userId, month);
 			return listDb.Select(_domainMapper.ToExpense).ToList();
@@ -66,7 +66,7 @@ namespace MoneyManager.Data.Repositories
 					list = list.Where(e => e.PaymentMethod == paymentMethod.Value);
 				if (datePaidNull == true)
 					list = list.Where(e => e.DatePaid == null);
-				return await Task.FromResult(list.OrderByDescending(e => e.ExpenseDate).ToList());
+				return await Task.FromResult(list.OrderBy(e => e.ExpenseDate).ToList());
 			}
 			var result = new List<DbExpense>();
 			var sql = "SELECT * FROM Expenses WHERE UserId = @UserId";
@@ -86,7 +86,7 @@ namespace MoneyManager.Data.Repositories
 				sql += " AND DatePaid IS NULL";
 			}
 
-			sql += " ORDER BY ExpenseDate DESC";
+			sql += " ORDER BY ExpenseDate ASC";
 
 			await _db.ExecuteReader(sql, parameters, async sqlReader =>
 			{
@@ -366,7 +366,7 @@ namespace MoneyManager.Data.Repositories
 				parameters.Add(new SqlParameter("@Month", month));
 			}
 
-			sql += " ORDER BY ExpenseDate DESC";
+			sql += " ORDER BY ExpenseDate ASC";
 
 			await _db.ExecuteReader(sql, parameters, async sqlReader =>
 			{

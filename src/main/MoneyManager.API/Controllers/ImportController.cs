@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using MoneyManager.API.Utilities;
+using MoneyManager.Core.Models;
 using MoneyManager.Core.UseCases.Import;
 
 namespace MoneyManager.API.Controllers
@@ -27,7 +28,7 @@ namespace MoneyManager.API.Controllers
 		public async Task<IActionResult> ImportFile(
 			[FromForm] IFormFile? file,
 			[FromForm] string? format,
-			[FromForm] string? sourceKey,
+			[FromForm] ImportSource? importSource,
 			[FromForm] int? paymentMethodId,
 			CancellationToken cancellationToken)
 		{
@@ -39,8 +40,8 @@ namespace MoneyManager.API.Controllers
 				return BadRequest(new { error = "No file uploaded." });
 			if (string.IsNullOrWhiteSpace(format))
 				return BadRequest(new { error = "Format (OFX, QFX, or CSV) is required." });
-			if (string.IsNullOrWhiteSpace(sourceKey))
-				return BadRequest(new { error = "Source key is required." });
+			if (!importSource.HasValue)
+				return BadRequest(new { error = "Import source is required." });
 			if (!paymentMethodId.HasValue || paymentMethodId.Value <= 0)
 				return BadRequest(new { error = "Payment method is required." });
 
@@ -49,7 +50,7 @@ namespace MoneyManager.API.Controllers
 				return BadRequest(new { error = "Format must be OFX, QFX, or CSV." });
 
 			await using var stream = file.OpenReadStream();
-			var result = await _importFromFileUseCase.ExecuteAsync(userId.Value, stream, format.Trim(), sourceKey.Trim(), paymentMethodId.Value, cancellationToken);
+			var result = await _importFromFileUseCase.ExecuteAsync(userId.Value, stream, format.Trim(), importSource.Value, paymentMethodId.Value, cancellationToken);
 			return Ok(new { created = result.Created, skippedDuplicates = result.SkippedDuplicates, errors = result.Errors });
 		}
 

@@ -61,7 +61,7 @@ namespace MoneyManager.Data.Repositories
 					list = list.Where(e => e.PaymentMethod == paymentMethod.Value);
 				if (datePaidNull == true)
 					list = list.Where(e => e.DatePaid == null);
-				return list.OrderByDescending(e => e.ExpenseDate).ToList();
+				return list.OrderBy(e => e.ExpenseDate).ToList();
 			}
 		}
 

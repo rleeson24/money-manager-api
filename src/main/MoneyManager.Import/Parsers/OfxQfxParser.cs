@@ -12,7 +12,7 @@ namespace MoneyManager.Import.Parsers
 	/// </summary>
 	public sealed class OfxQfxParser : ITransactionFileParser
 	{
-		public async Task<IReadOnlyList<BankTransaction>> ParseAsync(Stream fileContent, string format, string? sourceKey = null, CancellationToken cancellationToken = default)
+		public async Task<IReadOnlyList<BankTransaction>> ParseAsync(Stream fileContent, string format, ImportSource? importSource = null, CancellationToken cancellationToken = default)
 		{
 			using var reader = new StreamReader(fileContent, Encoding.UTF8, leaveOpen: true);
 			var text = await reader.ReadToEndAsync(cancellationToken);

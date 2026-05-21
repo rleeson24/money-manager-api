@@ -5,7 +5,7 @@ using MoneyManager.Import.Parsers;
 namespace MoneyManager.Import
 {
 	/// <summary>
-	/// Routes to OFX/QFX or CSV parser based on format. For CSV, uses sourceKey to select account-specific parser.
+	/// Routes to OFX/QFX or CSV parser based on format. For CSV, uses importSource to select account-specific parser.
 	/// </summary>
 	public sealed class CompositeTransactionFileParser : ITransactionFileParser
 	{
@@ -18,16 +18,17 @@ namespace MoneyManager.Import
 			_csvParserSelector = csvParserSelector;
 		}
 
-		public async Task<IReadOnlyList<BankTransaction>> ParseAsync(Stream fileContent, string format, string? sourceKey = null, CancellationToken cancellationToken = default)
+		public async Task<IReadOnlyList<BankTransaction>> ParseAsync(Stream fileContent, string format, ImportSource? importSource = null, CancellationToken cancellationToken = default)
 		{
 			var fmt = format?.Trim().ToUpperInvariant() ?? "";
 			if (fmt == "CSV")
 			{
-				if (string.IsNullOrWhiteSpace(sourceKey))
-					throw new InvalidOperationException("Source key is required for CSV import (e.g. Arvest, Discover Credit).");
-				var csvParser = _csvParserSelector.GetParser(sourceKey!);
+				if (!importSource.HasValue)
+					throw new InvalidOperationException("Import source is required for CSV import.");
+				var sourceKey = importSource.Value.ToSourceKey();
+				var csvParser = _csvParserSelector.GetParser(sourceKey);
 				if (csvParser == null)
-					throw new NotSupportedException($"No CSV parser registered for source '{sourceKey}'. Supported: Arvest, ABFCU Savings, ABFCU Checking, Discover Savings, Discover Checking, Discover Credit.");
+					throw new NotSupportedException($"No CSV parser registered for source '{sourceKey}'.");
 				return await csvParser.ParseAsync(fileContent, cancellationToken);
 			}
 			if (fmt == "OFX" || fmt == "QFX")
