@@ -23,13 +23,15 @@ namespace MoneyManager.API.Utilities
 		{
 			// Azure AD object ID is the stable identifier for row-level scoping
 			var userIdClaim = user.FindFirst("oid")?.Value
+				?? user.FindFirst("http://schemas.microsoft.com/identity/claims/objectidentifier")?.Value
 				?? user.FindFirst(ClaimTypes.NameIdentifier)?.Value
 				?? user.FindFirst("sub")?.Value;
 
 			if (!string.IsNullOrEmpty(userIdClaim) && Guid.TryParse(userIdClaim, out var userId))
 				return userId;
 
-			if (IsAspireOrchestrated())
+			// Dev-only fallback when running under Aspire without an Azure AD token
+			if (user.Identity?.IsAuthenticated != true && IsAspireOrchestrated())
 			{
 				var seed = _configuration["Data:AspireSeedUserId"] ?? DefaultAspireSeedUserId;
 				if (Guid.TryParse(seed, out var aspireSeed))

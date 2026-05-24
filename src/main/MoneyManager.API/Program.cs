@@ -73,8 +73,8 @@ builder.Services.AddCors(options =>
 
 // Azure AD is the sole authentication scheme. Do not register a second JwtBearer
 // handler as the default — it will intercept Azure AD tokens and reject their issuer.
-builder.Services.AddAuthentication(AzureAdJwtBearerPostConfigure.SchemeName)
-	.AddMicrosoftIdentityWebApi(builder.Configuration.GetSection("AzureAd"), AzureAdJwtBearerPostConfigure.SchemeName);
+builder.Services.AddAuthentication(AuthSchemes.Microsoft)
+	.AddMicrosoftIdentityWebApi(builder.Configuration.GetSection("AzureAd"), AuthSchemes.Microsoft);
 
 builder.Services.AddSingleton<IPostConfigureOptions<JwtBearerOptions>, AzureAdJwtBearerPostConfigure>();
 
@@ -118,7 +118,7 @@ builder.Services.AddAuthorization(options =>
 {
 	options.FallbackPolicy = new AuthorizationPolicyBuilder()
 		.RequireAuthenticatedUser()
-		.AddAuthenticationSchemes(AzureAdJwtBearerPostConfigure.SchemeName)
+		.AddAuthenticationSchemes(AuthSchemes.Microsoft)
 		.Build();
 });
 
@@ -135,6 +135,7 @@ app.Logger.LogInformation("=== Application starting ===");
 app.Logger.LogInformation("Environment: {Env}", app.Environment.EnvironmentName);
 app.Logger.LogInformation("DetailedErrors flag: {Flag}", app.Configuration.GetValue<bool>("DetailedErrors"));
 app.Logger.LogInformation("Allowed origins: {Origins}", string.Join(", ", allowedOrigins));
+AzureAdConfigurationValidator.LogConfigurationStatus(app.Configuration, app.Logger);
 
 app.UseExceptionHandler(exceptionHandlerApp =>
 {

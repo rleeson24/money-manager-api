@@ -9,7 +9,7 @@ One-time configuration in the Azure portal before running Money Manager with aut
 3. Supported account types: choose based on who may sign in (single tenant is typical for personal/family use).
 4. Redirect URI:
    - Platform: **Single-page application**
-   - URI: `https://localhost:5173` (Vite dev; Aspire may assign a different HTTPS port — add that URI too if needed)
+   - URIs: `https://localhost:5173` and `https://localhost:6548` (Aspire fixed port)
 5. Register and note the **Application (client) ID** and **Directory (tenant) ID**.
 
 ## 2. Expose an API scope
@@ -38,7 +38,7 @@ Grant admin consent if your tenant requires it.
 
 ## 4. Configuration values
 
-### API (`appsettings.json`, user secrets, or Key Vault)
+### API (`appsettings.*.json`, user secrets, or Key Vault)
 
 | Key | Example |
 |-----|---------|
@@ -46,11 +46,24 @@ Grant admin consent if your tenant requires it.
 | `AzureAd:ClientId` | `{client-id}` |
 | `AzureAd:Audience` | `api://{client-id}` |
 | `AzureAd:AllowWebApiCallsWithMultipleIssuers` | `true` (accepts both v1 and v2 token issuers) |
-| `AllowedOrigins` | `https://localhost:5173` (semicolon-separated for multiple origins) |
+| `AllowedOrigins` | `https://localhost:5173;https://localhost:6548` (semicolon-separated) |
 
 Do **not** set `AzureAd:Issuer` or leave `AzureAd:Audience` empty in user secrets — those override `appsettings.*.json` and cause `401` token validation failures.
 
-### Client (`.env`)
+Verify user secrets:
+
+```bash
+dotnet user-secrets list --project src/main/MoneyManager.API/MoneyManager.API.csproj
+```
+
+Remove stale entries if present:
+
+```bash
+dotnet user-secrets remove "AzureAd:Issuer" --project src/main/MoneyManager.API/MoneyManager.API.csproj
+dotnet user-secrets remove "AzureAd:Authority" --project src/main/MoneyManager.API/MoneyManager.API.csproj
+```
+
+### Client (`.env.local`)
 
 ```
 VITE_AZURE_CLIENT_ID={client-id}
@@ -60,14 +73,30 @@ VITE_USE_API=true
 VITE_API_URL=https://localhost:7016
 ```
 
+If `VITE_USE_API=true` but Azure variables are missing, the client shows a configuration error instead of making unauthenticated API calls.
+
 ## 5. Local development with Aspire
 
-When running via `MoneyManager.AppHost`, ensure:
+When running via `MoneyManager.AppHost`:
 
-- The Vite app redirect URI in Azure matches the HTTPS URL Aspire assigns to the client (check the Aspire dashboard).
-- `AllowedOrigins` includes that client origin.
-- Azure AD values are set via user secrets or environment variables on the API project.
+- Client runs at `https://localhost:6548` (fixed in AppHost).
+- Add that redirect URI in Azure AD.
+- `AllowedOrigins` must include `https://localhost:6548`.
+- Azure AD values can live in user secrets or `appsettings.Development.json` / `appsettings.Local.json`.
 
 ## 6. User identity and data
 
-Each signed-in user is scoped by their Azure AD **object ID** (`oid` claim), stored as `UserId` on expense rows. Data from the Aspire seed user (`11111111-1111-1111-1111-111111111111`) is not visible to real Azure AD accounts.
+Each signed-in user is scoped by their Azure AD **object ID** (`oid` claim), stored as `UserId` on expense rows. Data from the Aspire seed user (`11111111-1111-1111-1111-111111111111`) is only used for unauthenticated Aspire dev requests without a token.
+
+## 7. Troubleshooting 401 errors
+
+Check API logs for `Azure AD JWT authentication failed.` Common causes:
+
+| Symptom | Fix |
+|---------|-----|
+| `issuer ... is invalid` | Remove `AzureAd:Issuer` from user secrets; ensure `AllowWebApiCallsWithMultipleIssuers` is true |
+| `audience ... is invalid` | Set `AzureAd:Audience` to `api://{client-id}` in user secrets |
+| Token acquired but API still 401 | Restart API after changing secrets; confirm `Authorization: Bearer` header is sent |
+| Client redirects to login repeatedly | Confirm redirect URI in Azure matches browser URL exactly |
+
+Health checks (`/health`, `/alive`) remain anonymous in Development for Aspire probes.

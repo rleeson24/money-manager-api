@@ -52,13 +52,14 @@ public sealed class AzureAdJwtBearerPostConfigure : IPostConfigureOptions<JwtBea
 			options.TokenValidationParameters.ValidAudiences = validAudiences.ToArray();
 		}
 
+		var existingFailedHandler = options.Events?.OnAuthenticationFailed;
 		options.Events ??= new JwtBearerEvents();
 		options.Events.OnAuthenticationFailed = context =>
 		{
 			var logger = context.HttpContext.RequestServices
 				.GetRequiredService<ILogger<AzureAdJwtBearerPostConfigure>>();
 			logger.LogWarning(context.Exception, "Azure AD JWT authentication failed.");
-			return Task.CompletedTask;
+			return existingFailedHandler?.Invoke(context) ?? Task.CompletedTask;
 		};
 	}
 }

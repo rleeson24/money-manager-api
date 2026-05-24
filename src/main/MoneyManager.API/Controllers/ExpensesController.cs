@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using MoneyManager.API.Configuration;
 using MoneyManager.API.Utilities;
 using MoneyManager.Core.Models;
 using MoneyManager.Core.Models.Input;
@@ -12,7 +13,7 @@ using System.Text.Json;
 namespace MoneyManager.API.Controllers
 {
 	[ApiController]
-	[Authorize(AuthenticationSchemes = "Microsoft")]
+	[Authorize(AuthenticationSchemes = AuthSchemes.Microsoft)]
 	[Route("api/expenses")]
 	public class ExpensesController : ControllerBase
 	{
