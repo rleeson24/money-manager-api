@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MoneyManager.API.Utilities;
 using MoneyManager.Core.Models;
@@ -6,6 +7,7 @@ using MoneyManager.Core.UseCases.Import;
 namespace MoneyManager.API.Controllers
 {
 	[ApiController]
+	[Authorize(AuthenticationSchemes = "Microsoft")]
 	[Route("api/import")]
 	public class ImportController : ControllerBase
 	{

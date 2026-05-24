@@ -23,9 +23,6 @@ The solution follows a clean architecture pattern with the following projects:
 Configure the following settings:
 
 - **ConnectionStrings:DefaultConnection** - SQL Server connection string
-- **JwtToken:SecretKey** - Secret key for JWT token generation
-- **JwtToken:Issuer** - JWT token issuer
-- **JwtToken:Audience** - JWT token audience
 - **AllowedOrigins** - CORS allowed origins (semicolon-separated)
 - **AzureAd** - Azure AD configuration for authentication
 - **ApplicationInsights:ConnectionString** - Application Insights connection string (optional)
@@ -58,13 +55,9 @@ Run the SQL script in `Database/CreateTables.sql` to create the required databas
 
 ## Security
 
-The API uses:
-- JWT Bearer authentication
-- Azure AD authentication (Microsoft Identity)
-- CORS configuration
-- Authorization policies
+The API uses Azure AD (Microsoft Entra ID) authentication via Microsoft Identity Web. All endpoints require authentication except health checks.
 
-All endpoints require authentication except for health checks.
+See [docs/azure-ad-setup.md](docs/azure-ad-setup.md) for Azure portal registration steps and configuration values.
 
 ## Running the Application
 

@@ -12,6 +12,7 @@ using System.Text.Json;
 namespace MoneyManager.API.Controllers
 {
 	[ApiController]
+	[Authorize(AuthenticationSchemes = "Microsoft")]
 	[Route("api/expenses")]
 	public class ExpensesController : ControllerBase
 	{
@@ -22,6 +23,18 @@ namespace MoneyManager.API.Controllers
 			_resolveUserId = resolveUserId;
 		}
 
+		private IActionResult? UnauthorizedIfNoUser(out Guid userId)
+		{
+			var resolved = _resolveUserId.Resolve(User);
+			if (resolved == null)
+			{
+				userId = default;
+				return Unauthorized();
+			}
+			userId = resolved.Value;
+			return null;
+		}
+
 		[HttpGet]
 		public async Task<IActionResult> GetExpenses(
 			[FromServices] IGetExpensesUseCase getExpensesUseCase,
@@ -29,16 +42,17 @@ namespace MoneyManager.API.Controllers
 			[FromQuery] int? paymentMethod = null,
 			[FromQuery] bool? datePaidNull = null)
 		{
-			var userId = _resolveUserId.Resolve(User);
+			if (UnauthorizedIfNoUser(out var userId) is { } unauthorized)
+				return unauthorized;
 
 			IReadOnlyList<Expense>? expenses;
 			if (paymentMethod.HasValue || datePaidNull.HasValue)
 			{
-				expenses = await getExpensesUseCase.ExecuteWithFilters(userId.Value, paymentMethod, datePaidNull);
+				expenses = await getExpensesUseCase.ExecuteWithFilters(userId, paymentMethod, datePaidNull);
 			}
 			else
 			{
-				expenses = await getExpensesUseCase.Execute(userId.Value, month);
+				expenses = await getExpensesUseCase.Execute(userId, month);
 			}
 
 			if (expenses != null)
@@ -53,9 +67,10 @@ namespace MoneyManager.API.Controllers
 			[FromServices] IGetExpenseUseCase getExpenseUseCase,
 			int id)
 		{
-			var userId = _resolveUserId.Resolve(User);
+			if (UnauthorizedIfNoUser(out var userId) is { } unauthorized)
+				return unauthorized;
 
-			var expense = await getExpenseUseCase.Execute(id, userId.Value);
+			var expense = await getExpenseUseCase.Execute(id, userId);
 			if (expense != null)
 			{
 				return Ok(expense);
@@ -68,9 +83,10 @@ namespace MoneyManager.API.Controllers
 			[FromServices] ICreateExpenseUseCase createExpenseUseCase,
 			[FromBody] CreateExpenseModel model)
 		{
-			var userId = _resolveUserId.Resolve(User);
+			if (UnauthorizedIfNoUser(out var userId) is { } unauthorized)
+				return unauthorized;
 
-			var expense = await createExpenseUseCase.Execute(userId.Value, model);
+			var expense = await createExpenseUseCase.Execute(userId, model);
 			if (expense != null)
 			{
 				return CreatedAtAction(nameof(GetExpense), new { id = expense.Expense_I }, expense);
@@ -84,9 +100,10 @@ namespace MoneyManager.API.Controllers
 			int id,
 			[FromBody] Expense model)
 		{
-			var userId = _resolveUserId.Resolve(User);
+			if (UnauthorizedIfNoUser(out var userId) is { } unauthorized)
+				return unauthorized;
 
-			var result = await updateExpenseUseCase.Execute(id, userId.Value, model);
+			var result = await updateExpenseUseCase.Execute(id, userId, model);
 			if (result.IsSuccess)
 				return Ok(result.Updated);
 			if (result.IsConflict)
@@ -100,7 +117,8 @@ namespace MoneyManager.API.Controllers
 			int id,
 			[FromBody] JsonElement jsonElement)
 		{
-			var userId = _resolveUserId.Resolve(User);
+			if (UnauthorizedIfNoUser(out var userId) is { } unauthorized)
+				return unauthorized;
 
 			var updates = new Dictionary<string, object?>();
 			DateTime? expectedModifiedDateTime = null;
@@ -159,7 +177,7 @@ namespace MoneyManager.API.Controllers
 				}
 			}
 
-			var result = await patchExpenseUseCase.Execute(id, userId.Value, updates, expectedModifiedDateTime);
+			var result = await patchExpenseUseCase.Execute(id, userId, updates, expectedModifiedDateTime);
 			if (result.IsSuccess)
 				return Ok(result.Updated);
 			if (result.IsConflict)
@@ -184,9 +202,10 @@ namespace MoneyManager.API.Controllers
 			[FromServices] IDeleteExpenseUseCase deleteExpenseUseCase,
 			int id)
 		{
-			var userId = _resolveUserId.Resolve(User);
+			if (UnauthorizedIfNoUser(out var userId) is { } unauthorized)
+				return unauthorized;
 
-			var success = await deleteExpenseUseCase.Execute(id, userId.Value);
+			var success = await deleteExpenseUseCase.Execute(id, userId);
 			if (success)
 			{
 				return Ok();
@@ -199,7 +218,8 @@ namespace MoneyManager.API.Controllers
 			[FromServices] IBulkUpdateExpensesUseCase bulkUpdateExpensesUseCase,
 			[FromBody] BulkUpdateRequest request)
 		{
-			var userId = _resolveUserId.Resolve(User);
+			if (UnauthorizedIfNoUser(out var userId) is { } unauthorized)
+				return unauthorized;
 
 			var updates = new Dictionary<string, object?>();
 			if (request.ExpenseDate != null)
@@ -213,7 +233,7 @@ namespace MoneyManager.API.Controllers
 			else if (request.DatePaid != null)
 				updates["DatePaid"] = request.DatePaid;
 
-			var success = await bulkUpdateExpensesUseCase.Execute(request.Ids, userId.Value, updates);
+			var success = await bulkUpdateExpensesUseCase.Execute(request.Ids, userId, updates);
 			if (success)
 			{
 				return Ok();
@@ -226,8 +246,9 @@ namespace MoneyManager.API.Controllers
 			[FromServices] IGetExpenseSplitsUseCase getExpenseSplitsUseCase,
 			[FromQuery] int expenseId)
 		{
-			var userId = _resolveUserId.Resolve(User);
-			var splits = await getExpenseSplitsUseCase.Execute(expenseId, userId.Value);
+			if (UnauthorizedIfNoUser(out var userId) is { } unauthorized)
+				return unauthorized;
+			var splits = await getExpenseSplitsUseCase.Execute(expenseId, userId);
 			return Ok(splits);
 		}
 
@@ -236,8 +257,9 @@ namespace MoneyManager.API.Controllers
 			[FromServices] ICreateExpenseSplitUseCase createExpenseSplitUseCase,
 			[FromBody] CreateOrUpdateExpenseSplitModel model)
 		{
-			var userId = _resolveUserId.Resolve(User);
-			var split = await createExpenseSplitUseCase.Execute(userId.Value, model);
+			if (UnauthorizedIfNoUser(out var userId) is { } unauthorized)
+				return unauthorized;
+			var split = await createExpenseSplitUseCase.Execute(userId, model);
 			if (split != null)
 			{
 				return CreatedAtAction(nameof(GetExpenseSplits), new { expenseId = model.Expense_I }, split);
@@ -251,8 +273,9 @@ namespace MoneyManager.API.Controllers
 			int id,
 			[FromBody] CreateOrUpdateExpenseSplitModel model)
 		{
-			var userId = _resolveUserId.Resolve(User);
-			var split = await updateExpenseSplitUseCase.Execute(id, userId.Value, model);
+			if (UnauthorizedIfNoUser(out var userId) is { } unauthorized)
+				return unauthorized;
+			var split = await updateExpenseSplitUseCase.Execute(id, userId, model);
 			if (split != null)
 			{
 				return Ok(split);
@@ -265,8 +288,9 @@ namespace MoneyManager.API.Controllers
 			[FromServices] IDeleteExpenseSplitUseCase deleteExpenseSplitUseCase,
 			int id)
 		{
-			var userId = _resolveUserId.Resolve(User);
-			var success = await deleteExpenseSplitUseCase.Execute(id, userId.Value);
+			if (UnauthorizedIfNoUser(out var userId) is { } unauthorized)
+				return unauthorized;
+			var success = await deleteExpenseSplitUseCase.Execute(id, userId);
 			if (success)
 			{
 				return NoContent();
@@ -280,8 +304,9 @@ namespace MoneyManager.API.Controllers
 			[FromQuery] int expenseId,
 			[FromBody] ReplaceExpenseSplitsRequest request)
 		{
-			var userId = _resolveUserId.Resolve(User);
-			var result = await replaceExpenseSplitsUseCase.Execute(expenseId, userId.Value, request);
+			if (UnauthorizedIfNoUser(out var userId) is { } unauthorized)
+				return unauthorized;
+			var result = await replaceExpenseSplitsUseCase.Execute(expenseId, userId, request);
 			if (result.IsSuccess)
 				return Ok(result.Splits);
 			return BadRequest(new { error = result.ValidationError });
@@ -292,9 +317,10 @@ namespace MoneyManager.API.Controllers
 			[FromServices] IBulkDeleteExpensesUseCase bulkDeleteExpensesUseCase,
 			[FromBody] BulkDeleteRequest request)
 		{
-			var userId = _resolveUserId.Resolve(User);
+			if (UnauthorizedIfNoUser(out var userId) is { } unauthorized)
+				return unauthorized;
 
-			var success = await bulkDeleteExpensesUseCase.Execute(request.Ids, userId.Value);
+			var success = await bulkDeleteExpensesUseCase.Execute(request.Ids, userId);
 			if (success)
 			{
 				return Ok();

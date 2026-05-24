@@ -21,9 +21,10 @@ namespace MoneyManager.API.Utilities
 
 		public Guid? Resolve(ClaimsPrincipal user)
 		{
-			var userIdClaim = user.FindFirst(ClaimTypes.NameIdentifier)?.Value
-				?? user.FindFirst("sub")?.Value
-				?? user.FindFirst("oid")?.Value;
+			// Azure AD object ID is the stable identifier for row-level scoping
+			var userIdClaim = user.FindFirst("oid")?.Value
+				?? user.FindFirst(ClaimTypes.NameIdentifier)?.Value
+				?? user.FindFirst("sub")?.Value;
 
 			if (!string.IsNullOrEmpty(userIdClaim) && Guid.TryParse(userIdClaim, out var userId))
 				return userId;

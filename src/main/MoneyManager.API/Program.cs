@@ -2,6 +2,7 @@ using Aspire.Microsoft.Data.SqlClient;
 using Azure.Extensions.AspNetCore.Configuration.Secrets;
 using Azure.Identity;
 using Azure.Security.KeyVault.Secrets;
+using MoneyManager.API.Configuration;
 using MoneyManager.API.Utilities;
 using MoneyManager.Core;
 using MoneyManager.Core.UseCases.Categories;
@@ -9,11 +10,11 @@ using MoneyManager.Core.UseCases.PaymentMethods;
 using MoneyManager.Data;
 using MoneyManager.Import;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Diagnostics;
+using Microsoft.Extensions.Options;
 using Microsoft.Identity.Web;
-using Microsoft.IdentityModel.Tokens;
 using System.Diagnostics;
-using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -70,26 +71,12 @@ builder.Services.AddCors(options =>
 	});
 });
 
-// Add services to the container.
-builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-	.AddJwtBearer(options =>
-	{
-		options.TokenValidationParameters = new TokenValidationParameters
-		{
-			ValidateIssuer = true,
-			ValidateAudience = true,
-			ValidateLifetime = false,
-			ValidateIssuerSigningKey = true,
-			ValidIssuer = builder.Configuration["JwtToken:Issuer"],
-			ValidAudience = builder.Configuration["JwtToken:Audience"],
-			IssuerSigningKey = new SymmetricSecurityKey(
-				Encoding.UTF8.GetBytes(builder.Configuration["JwtToken:SecretKey"] ?? throw new InvalidOperationException("JwtToken:SecretKey not configured")))
-		};
-	})
-	.AddMicrosoftIdentityWebApi(builder.Configuration.GetSection("AzureAd"), "Microsoft")
-	.EnableTokenAcquisitionToCallDownstreamApi()
-	.AddMicrosoftGraph(builder.Configuration.GetSection("Graph"))
-	.AddInMemoryTokenCaches();
+// Azure AD is the sole authentication scheme. Do not register a second JwtBearer
+// handler as the default — it will intercept Azure AD tokens and reject their issuer.
+builder.Services.AddAuthentication(AzureAdJwtBearerPostConfigure.SchemeName)
+	.AddMicrosoftIdentityWebApi(builder.Configuration.GetSection("AzureAd"), AzureAdJwtBearerPostConfigure.SchemeName);
+
+builder.Services.AddSingleton<IPostConfigureOptions<JwtBearerOptions>, AzureAdJwtBearerPostConfigure>();
 
 builder.Services.AddControllers()
 	.AddJsonOptions(opts => 
@@ -129,7 +116,10 @@ builder.Logging.AddConsole();
 
 builder.Services.AddAuthorization(options =>
 {
-	options.AddPolicy("ApiScope", p => p.RequireAuthenticatedUser());
+	options.FallbackPolicy = new AuthorizationPolicyBuilder()
+		.RequireAuthenticatedUser()
+		.AddAuthenticationSchemes(AzureAdJwtBearerPostConfigure.SchemeName)
+		.Build();
 });
 
 services.AddScoped<IResolveUserId, ResolveUserId>();
@@ -209,13 +199,13 @@ app.MapGet("/api/categories", async (IGetCategoriesUseCase getCategoriesUseCase)
 {
 	var categories = await getCategoriesUseCase.Execute();
 	return categories != null ? Results.Ok(categories) : Results.Problem();
-}).WithTags("Categories");
+}).RequireAuthorization().WithTags("Categories");
 
 app.MapGet("/api/payment-methods", async (IGetPaymentMethodsUseCase getPaymentMethodsUseCase) =>
 {
 	var paymentMethods = await getPaymentMethodsUseCase.Execute();
 	return paymentMethods != null ? Results.Ok(paymentMethods) : Results.Problem();
-}).WithTags("Payment Methods");
+}).RequireAuthorization().WithTags("Payment Methods");
 
 app.MapControllers();
 
