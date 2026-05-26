@@ -28,7 +28,7 @@ namespace MoneyManager.Core.UseCases.Expenses
 			}
 			catch (Exception ex)
 			{
-				_logger.LogError(ex, "An error occurred fetching expense {ExpenseId}", id);
+				_logger.LogError(ex, "Failed to fetch expense {ExpenseId} for user {UserId}", id, userId);
 				return null;
 			}
 		}

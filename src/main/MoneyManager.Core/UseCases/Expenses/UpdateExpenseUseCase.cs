@@ -24,11 +24,20 @@ namespace MoneyManager.Core.UseCases.Expenses
 		{
 			try
 			{
-				return await _repository.Update(id, userId, expense);
+				var result = await _repository.Update(id, userId, expense);
+				if (result.IsSuccess)
+				{
+					_logger.LogInformation("Updated expense {ExpenseId} for user {UserId}", id, userId);
+				}
+				else if (result.IsConflict)
+				{
+					_logger.LogWarning("Update conflict on expense {ExpenseId} for user {UserId}", id, userId);
+				}
+				return result;
 			}
 			catch (Exception ex)
 			{
-				_logger.LogError(ex, "An error occurred updating expense {ExpenseId}", id);
+				_logger.LogError(ex, "Failed to update expense {ExpenseId} for user {UserId}", id, userId);
 				return UpdateExpenseResult.NotFound();
 			}
 		}

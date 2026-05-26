@@ -15,15 +15,18 @@ namespace MoneyManager.API.Controllers
 		private readonly IResolveUserId _resolveUserId;
 		private readonly IImportFromFileUseCase _importFromFileUseCase;
 		private readonly IGetLastImportDatesUseCase _getLastImportDatesUseCase;
+		private readonly ILogger<ImportController> _logger;
 
 		public ImportController(
 			IResolveUserId resolveUserId,
 			IImportFromFileUseCase importFromFileUseCase,
-			IGetLastImportDatesUseCase getLastImportDatesUseCase)
+			IGetLastImportDatesUseCase getLastImportDatesUseCase,
+			ILogger<ImportController> logger)
 		{
 			_resolveUserId = resolveUserId;
 			_importFromFileUseCase = importFromFileUseCase;
 			_getLastImportDatesUseCase = getLastImportDatesUseCase;
+			_logger = logger;
 		}
 
 		[HttpPost("file")]
@@ -51,6 +54,10 @@ namespace MoneyManager.API.Controllers
 			var fmt = format.Trim().ToUpperInvariant();
 			if (fmt != "OFX" && fmt != "QFX" && fmt != "CSV")
 				return BadRequest(new { error = "Format must be OFX, QFX, or CSV." });
+
+			_logger.LogInformation(
+				"Import file request from user {UserId}: {FileName} ({FileSize} bytes), format={Format}, source={ImportSource}, paymentMethod={PaymentMethodId}",
+				userId, file.FileName, file.Length, fmt, importSource, paymentMethodId);
 
 			await using var stream = file.OpenReadStream();
 			var result = await _importFromFileUseCase.ExecuteAsync(userId.Value, stream, format.Trim(), importSource.Value, paymentMethodId.Value, cancellationToken);

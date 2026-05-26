@@ -25,11 +25,13 @@ namespace MoneyManager.Core.UseCases.PaymentMethods
 		{
 			try
 			{
-				return await _repository.GetAll();
+				var paymentMethods = await _repository.GetAll();
+				_logger.LogDebug("Fetched {Count} payment methods", paymentMethods.Count);
+				return paymentMethods;
 			}
 			catch (Exception ex)
 			{
-				_logger.LogError(ex, "An error occurred fetching payment methods");
+				_logger.LogError(ex, "Failed to fetch payment methods");
 				return null;
 			}
 		}

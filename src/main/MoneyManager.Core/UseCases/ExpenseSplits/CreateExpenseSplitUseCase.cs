@@ -25,11 +25,18 @@ namespace MoneyManager.Core.UseCases.ExpenseSplits
 		{
 			try
 			{
-				return await _repository.Create(userId, model);
+				var split = await _repository.Create(userId, model);
+				if (split != null)
+				{
+					_logger.LogInformation(
+						"Created expense split {SplitId} for expense {ExpenseId}, user {UserId}",
+						split.Id, model.Expense_I, userId);
+				}
+				return split;
 			}
 			catch (Exception ex)
 			{
-				_logger.LogError(ex, "An error occurred creating expense split");
+				_logger.LogError(ex, "Failed to create expense split for expense {ExpenseId}, user {UserId}", model.Expense_I, userId);
 				return null;
 			}
 		}

@@ -4,6 +4,7 @@ using MoneyManager.Core.Import;
 using MoneyManager.Core.Models;
 using MoneyManager.Core.Models.Input;
 using MoneyManager.Core.Repositories;
+using Microsoft.Extensions.Logging;
 
 namespace MoneyManager.Core.UseCases.Import
 {
@@ -19,15 +20,24 @@ namespace MoneyManager.Core.UseCases.Import
 	{
 		private readonly ITransactionFileParser _parser;
 		private readonly IExpenseRepository _expenseRepository;
+		private readonly ILogger<ImportFromFileUseCase> _logger;
 
-		public ImportFromFileUseCase(ITransactionFileParser parser, IExpenseRepository expenseRepository)
+		public ImportFromFileUseCase(
+			ITransactionFileParser parser,
+			IExpenseRepository expenseRepository,
+			ILogger<ImportFromFileUseCase> logger)
 		{
 			_parser = parser;
 			_expenseRepository = expenseRepository;
+			_logger = logger;
 		}
 
 		public async Task<ImportResult> ExecuteAsync(Guid userId, Stream fileContent, string format, ImportSource importSource, int paymentMethodId, CancellationToken cancellationToken = default)
 		{
+			_logger.LogInformation(
+				"Starting import for user {UserId}: format={Format}, source={ImportSource}, paymentMethod={PaymentMethodId}",
+				userId, format, importSource, paymentMethodId);
+
 			var errors = new List<string>();
 			IReadOnlyList<BankTransaction> transactions;
 			try
@@ -36,15 +46,21 @@ namespace MoneyManager.Core.UseCases.Import
 			}
 			catch (Exception ex)
 			{
+				_logger.LogError(ex, "Failed to parse import file for user {UserId}", userId);
 				errors.Add(ex.Message);
 				return new ImportResult { Errors = errors };
 			}
+
+			_logger.LogInformation("Parsed {TransactionCount} transactions for user {UserId}", transactions.Count, userId);
 
 			var accountType = importSource.ToAccountType();
 			var normalized = transactions.Select(t => ApplySignRules(t, accountType, importSource)).ToList();
 
 			if (normalized.Count == 0)
+			{
+				_logger.LogWarning("Import produced no transactions for user {UserId}", userId);
 				return new ImportResult { Errors = errors };
+			}
 
 			var minDate = normalized.Min(t => t.Date.Date);
 			var maxDate = normalized.Max(t => t.Date.Date);
@@ -52,6 +68,10 @@ namespace MoneyManager.Core.UseCases.Import
 			var toCreate = ImportDuplicateFilter.FilterDuplicates(existing, normalized);
 			toCreate = RemoveTransfersAndPayments(toCreate);
 			var skippedDuplicates = normalized.Count - toCreate.Count;
+
+			_logger.LogInformation(
+				"Import deduped for user {UserId}: {ToCreate} to create, {SkippedDuplicates} duplicates skipped ({DateRangeStart} to {DateRangeEnd})",
+				userId, toCreate.Count, skippedDuplicates, minDate, maxDate);
 
 			var created = 0;
 			foreach (var t in toCreate)
@@ -75,9 +95,14 @@ namespace MoneyManager.Core.UseCases.Import
 				}
 				catch (Exception ex)
 				{
+					_logger.LogWarning(ex, "Failed to create expense from import row for user {UserId}: {Date} {Amount}", userId, t.Date, t.Amount);
 					errors.Add($"{t.Date:yyyy-MM-dd} {t.Amount}: {ex.Message}");
 				}
 			}
+
+			_logger.LogInformation(
+				"Import completed for user {UserId}: created={Created}, skippedDuplicates={SkippedDuplicates}, errors={ErrorCount}",
+				userId, created, skippedDuplicates, errors.Count);
 
 			return new ImportResult
 			{

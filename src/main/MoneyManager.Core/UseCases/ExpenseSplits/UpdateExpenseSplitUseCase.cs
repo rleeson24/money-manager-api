@@ -25,11 +25,16 @@ namespace MoneyManager.Core.UseCases.ExpenseSplits
 		{
 			try
 			{
-				return await _repository.Update(id, userId, model);
+				var split = await _repository.Update(id, userId, model);
+				if (split != null)
+				{
+					_logger.LogInformation("Updated expense split {SplitId} for user {UserId}", id, userId);
+				}
+				return split;
 			}
 			catch (Exception ex)
 			{
-				_logger.LogError(ex, "An error occurred updating expense split {SplitId}", id);
+				_logger.LogError(ex, "Failed to update expense split {SplitId} for user {UserId}", id, userId);
 				return null;
 			}
 		}

@@ -25,11 +25,13 @@ namespace MoneyManager.Core.UseCases.Categories
 		{
 			try
 			{
-				return await _repository.GetAll();
+				var categories = await _repository.GetAll();
+				_logger.LogDebug("Fetched {Count} categories", categories.Count);
+				return categories;
 			}
 			catch (Exception ex)
 			{
-				_logger.LogError(ex, "An error occurred fetching categories");
+				_logger.LogError(ex, "Failed to fetch categories");
 				return null;
 			}
 		}

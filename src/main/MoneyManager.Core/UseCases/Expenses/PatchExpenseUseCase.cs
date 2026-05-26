@@ -24,11 +24,22 @@ namespace MoneyManager.Core.UseCases.Expenses
 		{
 			try
 			{
-				return await _repository.Patch(id, userId, updates, expectedModifiedDateTime);
+				var result = await _repository.Patch(id, userId, updates, expectedModifiedDateTime);
+				if (result.IsSuccess)
+				{
+					_logger.LogInformation(
+						"Patched expense {ExpenseId} for user {UserId} ({FieldCount} fields)",
+						id, userId, updates.Count);
+				}
+				else if (result.IsConflict)
+				{
+					_logger.LogWarning("Patch conflict on expense {ExpenseId} for user {UserId}", id, userId);
+				}
+				return result;
 			}
 			catch (Exception ex)
 			{
-				_logger.LogError(ex, "An error occurred patching expense {ExpenseId}", id);
+				_logger.LogError(ex, "Failed to patch expense {ExpenseId} for user {UserId}", id, userId);
 				return UpdateExpenseResult.NotFound();
 			}
 		}

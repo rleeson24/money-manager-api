@@ -23,11 +23,16 @@ namespace MoneyManager.Core.UseCases.ExpenseSplits
 		{
 			try
 			{
-				return await _repository.Delete(id, userId);
+				var deleted = await _repository.Delete(id, userId);
+				if (deleted)
+				{
+					_logger.LogInformation("Deleted expense split {SplitId} for user {UserId}", id, userId);
+				}
+				return deleted;
 			}
 			catch (Exception ex)
 			{
-				_logger.LogError(ex, "An error occurred deleting expense split {SplitId}", id);
+				_logger.LogError(ex, "Failed to delete expense split {SplitId} for user {UserId}", id, userId);
 				return false;
 			}
 		}

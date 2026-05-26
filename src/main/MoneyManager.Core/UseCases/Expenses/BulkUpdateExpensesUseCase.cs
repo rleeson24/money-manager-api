@@ -21,13 +21,21 @@ namespace MoneyManager.Core.UseCases.Expenses
 
 		public async Task<bool> Execute(IEnumerable<int> ids, Guid userId, Dictionary<string, object?> updates)
 		{
+			var idList = ids.ToList();
 			try
 			{
-				return await _repository.BulkUpdate(ids, userId, updates);
+				var success = await _repository.BulkUpdate(idList, userId, updates);
+				if (success)
+				{
+					_logger.LogInformation(
+						"Bulk updated {Count} expenses for user {UserId} ({FieldCount} fields)",
+						idList.Count, userId, updates.Count);
+				}
+				return success;
 			}
 			catch (Exception ex)
 			{
-				_logger.LogError(ex, "An error occurred bulk updating expenses");
+				_logger.LogError(ex, "Failed to bulk update {Count} expenses for user {UserId}", idList.Count, userId);
 				return false;
 			}
 		}

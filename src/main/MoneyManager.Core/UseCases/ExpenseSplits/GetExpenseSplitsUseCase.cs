@@ -24,11 +24,13 @@ namespace MoneyManager.Core.UseCases.ExpenseSplits
 		{
 			try
 			{
-				return await _repository.GetByExpenseId(expense_I, userId);
+				var splits = await _repository.GetByExpenseId(expense_I, userId);
+				_logger.LogDebug("Fetched {Count} splits for expense {ExpenseId}, user {UserId}", splits.Count, expense_I, userId);
+				return splits;
 			}
 			catch (Exception ex)
 			{
-				_logger.LogError(ex, "An error occurred fetching expense splits for {ExpenseId}", expense_I);
+				_logger.LogError(ex, "Failed to fetch expense splits for expense {ExpenseId}, user {UserId}", expense_I, userId);
 				return Array.Empty<ExpenseSplit>();
 			}
 		}

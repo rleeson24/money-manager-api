@@ -10,7 +10,6 @@
   <ItemGroup>
     <PackageReference Include="Aspire.Microsoft.Data.SqlClient" Version="13.1.2" />
     <PackageReference Include="Azure.Extensions.AspNetCore.Configuration.Secrets" Version="1.5.0" />
-    <PackageReference Include="Microsoft.ApplicationInsights.AspNetCore" Version="3.0.0" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.4" />
     <PackageReference Include="Microsoft.Extensions.Logging.AzureAppServices" Version="10.0.4" />
     <PackageReference Include="Microsoft.Identity.Web" Version="4.5.0" />

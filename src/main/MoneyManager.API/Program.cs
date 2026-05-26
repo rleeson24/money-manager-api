@@ -3,6 +3,7 @@ using Azure.Extensions.AspNetCore.Configuration.Secrets;
 using Azure.Identity;
 using Azure.Security.KeyVault.Secrets;
 using MoneyManager.API.Configuration;
+using MoneyManager.API.Middleware;
 using MoneyManager.API.Utilities;
 using MoneyManager.Core;
 using MoneyManager.Core.UseCases.Categories;
@@ -45,7 +46,6 @@ builder.WebHost.ConfigureKestrel(options =>
 builder.Services.AddSingleton<IHttpContextAccessor, HttpContextAccessor>();
 
 var allowedOrigins = builder.Configuration["AllowedOrigins"]?.Split(';', StringSplitOptions.RemoveEmptyEntries) ?? Array.Empty<string>();
-Console.WriteLine($"Allowed origins: {string.Join(", ", allowedOrigins)}");
 builder.Services.AddCors(options =>
 {
 	options.AddPolicy("Default", policy =>
@@ -94,23 +94,8 @@ builder.Services.AddSwaggerGen(c =>
 });
 builder.Services.AddHttpClient();
 
-// Logging — only enable Application Insights when a connection string is configured
-var applicationInsightsConnectionString = builder.Configuration["ApplicationInsights:ConnectionString"]
-	?? builder.Configuration["APPLICATIONINSIGHTS_CONNECTION_STRING"];
-if (!string.IsNullOrWhiteSpace(applicationInsightsConnectionString))
-{
-	builder.Services.AddApplicationInsightsTelemetry(options =>
-	{
-		options.ConnectionString = applicationInsightsConnectionString;
-	});
-}
-
-//builder.Logging.AddApplicationInsights(
-//	configureTelemetryConfiguration: cfg => cfg.ConnectionString =
-//		builder.Configuration["ApplicationInsights:ConnectionString"] ??
-//		builder.Configuration["APPLICATIONINSIGHTS_CONNECTION_STRING"],
-//	configureApplicationInsightsLoggerOptions: o => o.IncludeScopes = true);
-
+// OpenTelemetry (including logs/traces/metrics export to Application Insights) is configured
+// via AddServiceDefaults() in MoneyManager.ServiceDefaults.
 builder.Logging.AddAzureWebAppDiagnostics();
 builder.Logging.AddConsole();
 
@@ -135,6 +120,10 @@ app.Logger.LogInformation("=== Application starting ===");
 app.Logger.LogInformation("Environment: {Env}", app.Environment.EnvironmentName);
 app.Logger.LogInformation("DetailedErrors flag: {Flag}", app.Configuration.GetValue<bool>("DetailedErrors"));
 app.Logger.LogInformation("Allowed origins: {Origins}", string.Join(", ", allowedOrigins));
+var appInsightsConfigured = !string.IsNullOrWhiteSpace(
+	app.Configuration["ApplicationInsights:ConnectionString"]
+	?? app.Configuration["APPLICATIONINSIGHTS_CONNECTION_STRING"]);
+app.Logger.LogInformation("Application Insights export: {Status}", appInsightsConfigured ? "enabled" : "disabled");
 AzureAdConfigurationValidator.LogConfigurationStatus(app.Configuration, app.Logger);
 
 app.UseExceptionHandler(exceptionHandlerApp =>
@@ -190,6 +179,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseCors("Default");
+app.UseMiddleware<RequestLoggingMiddleware>();
 app.UseAuthentication();
 app.UseAuthorization();
 

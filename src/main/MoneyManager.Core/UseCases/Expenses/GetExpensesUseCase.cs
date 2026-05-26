@@ -26,11 +26,15 @@ namespace MoneyManager.Core.UseCases.Expenses
 		{
 			try
 			{
-				return await _repository.ListForUser(userId, month);
+				var expenses = await _repository.ListForUser(userId, month);
+				_logger.LogDebug(
+					"Fetched {Count} expenses for user {UserId} (month={Month})",
+					expenses.Count, userId, month ?? "all");
+				return expenses;
 			}
 			catch (Exception ex)
 			{
-				_logger.LogError(ex, "An error occurred fetching expenses");
+				_logger.LogError(ex, "Failed to fetch expenses for user {UserId}", userId);
 				return null;
 			}
 		}
@@ -39,11 +43,15 @@ namespace MoneyManager.Core.UseCases.Expenses
 		{
 			try
 			{
-				return await _repository.ListForUserWithFilters(userId, paymentMethod, datePaidNull);
+				var expenses = await _repository.ListForUserWithFilters(userId, paymentMethod, datePaidNull);
+				_logger.LogDebug(
+					"Fetched {Count} filtered expenses for user {UserId} (paymentMethod={PaymentMethod}, datePaidNull={DatePaidNull})",
+					expenses.Count, userId, paymentMethod, datePaidNull);
+				return expenses;
 			}
 			catch (Exception ex)
 			{
-				_logger.LogError(ex, "An error occurred fetching expenses with filters");
+				_logger.LogError(ex, "Failed to fetch filtered expenses for user {UserId}", userId);
 				return null;
 			}
 		}

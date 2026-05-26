@@ -23,11 +23,16 @@ namespace MoneyManager.Core.UseCases.Expenses
 		{
 			try
 			{
-				return await _repository.Delete(id, userId);
+				var deleted = await _repository.Delete(id, userId);
+				if (deleted)
+				{
+					_logger.LogInformation("Deleted expense {ExpenseId} for user {UserId}", id, userId);
+				}
+				return deleted;
 			}
 			catch (Exception ex)
 			{
-				_logger.LogError(ex, "An error occurred deleting expense {ExpenseId}", id);
+				_logger.LogError(ex, "Failed to delete expense {ExpenseId} for user {UserId}", id, userId);
 				return false;
 			}
 		}

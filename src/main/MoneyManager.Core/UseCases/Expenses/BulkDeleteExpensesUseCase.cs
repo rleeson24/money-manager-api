@@ -21,13 +21,19 @@ namespace MoneyManager.Core.UseCases.Expenses
 
 		public async Task<bool> Execute(IEnumerable<int> ids, Guid userId)
 		{
+			var idList = ids.ToList();
 			try
 			{
-				return await _repository.BulkDelete(ids, userId);
+				var success = await _repository.BulkDelete(idList, userId);
+				if (success)
+				{
+					_logger.LogInformation("Bulk deleted {Count} expenses for user {UserId}", idList.Count, userId);
+				}
+				return success;
 			}
 			catch (Exception ex)
 			{
-				_logger.LogError(ex, "An error occurred bulk deleting expenses");
+				_logger.LogError(ex, "Failed to bulk delete {Count} expenses for user {UserId}", idList.Count, userId);
 				return false;
 			}
 		}

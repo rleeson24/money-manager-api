@@ -26,11 +26,18 @@ namespace MoneyManager.Core.UseCases.Expenses
 			try
 			{
 				model.CreatedBy ??= userId.ToString();
-				return await _repository.Create(userId, model);
+				var expense = await _repository.Create(userId, model);
+				if (expense != null)
+				{
+					_logger.LogInformation(
+						"Created expense {ExpenseId} for user {UserId}: {Amount} on {ExpenseDate}",
+						expense.Expense_I, userId, expense.Amount, expense.ExpenseDate);
+				}
+				return expense;
 			}
 			catch (Exception ex)
 			{
-				_logger.LogError(ex, "An error occurred creating expense");
+				_logger.LogError(ex, "Failed to create expense for user {UserId}", userId);
 				return null;
 			}
 		}
