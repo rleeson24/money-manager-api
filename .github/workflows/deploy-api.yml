@@ -1,0 +1,47 @@
+name: Deploy API to Azure Web App
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "src/**"
+      - "MoneyManager.ServiceDefaults/**"
+      - "Database/**"
+      - "MoneyManager.sln"
+      - ".github/workflows/deploy-api.yml"
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AZURE_WEBAPP_NAME: mm
+  AZURE_WEBAPP_RESOURCE_GROUP: MM1
+  DOTNET_VERSION: "10.0.x"
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Publish API
+        run: dotnet publish src/main/MoneyManager.API/MoneyManager.API.csproj -c Release -o publish
+
+      - name: Deploy to Azure Web App
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ env.AZURE_WEBAPP_NAME }}
+          resource-group-name: ${{ env.AZURE_WEBAPP_RESOURCE_GROUP }}
+          package: publish
