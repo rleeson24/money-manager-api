@@ -19,11 +19,12 @@ namespace MoneyManager.Data
 			services.AddSingleton<INowProvider, SystemNowProvider>();
 
 			var dataOptions = configuration.GetSection("Data").Get<DataOptions>() ?? new DataOptions();
+			var runningUnderAspire = AspireOrchestrationDetector.IsRunningUnderAspire(configuration);
 			var connectionString = configuration.GetConnectionString("DefaultConnection");
-			// Aspire (and other hosts) inject a connection string; prefer SQL when present even if UseInMemoryDatabase is true in appsettings.
-			if (dataOptions.UseInMemoryDatabase && string.IsNullOrEmpty(connectionString))
+
+			// Under Aspire always use SQL + bootstrap even when appsettings.Development has UseInMemoryDatabase=true.
+			if (dataOptions.UseInMemoryDatabase && string.IsNullOrEmpty(connectionString) && !runningUnderAspire)
 			{
-				// In-memory database for development: no SQL Server required.
 				services.AddSingleton<InMemoryStore>();
 				services.AddScoped<IExpenseRepository, InMemoryExpenseRepository>();
 				services.AddScoped<ICategoryRepository, InMemoryCategoryRepository>();
@@ -32,7 +33,6 @@ namespace MoneyManager.Data
 				return services;
 			}
 
-			// SQL Server: reader mappers and repositories
 			services.AddScoped<IExpenseMapper, ExpenseMapper>();
 			services.AddScoped<ICategoryMapper, CategoryMapper>();
 			services.AddScoped<IPaymentMethodMapper, PaymentMethodMapper>();
@@ -44,15 +44,34 @@ namespace MoneyManager.Data
 			services.AddScoped<IExpenseSplitRepository, ExpenseSplitRepository>();
 
 			services.AddSingleton<DbExecutor>();
-			if (string.IsNullOrEmpty(connectionString))
-				throw new InvalidOperationException("Connection string 'DefaultConnection' not found. For development without SQL Server, set Data:UseInMemoryDatabase to true.");
-			if (AspireOrchestrationDetector.IsRunningUnderAspire(configuration))
-				connectionString = SqlConnectionStringHelper.ApplyAspireSqlContainerDefaults(connectionString);
-			services.AddSingleton(new DbConnectionFactory(connectionString));
 
-			if (AspireOrchestrationDetector.IsRunningUnderAspire(configuration))
+			if (runningUnderAspire)
+			{
+				services.AddSingleton<DbConnectionFactory>(sp =>
+				{
+					var config = sp.GetRequiredService<IConfiguration>();
+					var aspireConnectionString = config.GetConnectionString("DefaultConnection");
+					if (string.IsNullOrEmpty(aspireConnectionString))
+					{
+						throw new InvalidOperationException(
+							"Connection string 'DefaultConnection' not found while running under Aspire. "
+							+ "Ensure AppHost references the sql database with WithReference(sql).");
+					}
+
+					return new DbConnectionFactory(
+						SqlConnectionStringHelper.ApplyAspireSqlContainerDefaults(aspireConnectionString));
+				});
 				services.AddHostedService<AspireSqlDevelopmentBootstrap>();
+				return services;
+			}
 
+			if (string.IsNullOrEmpty(connectionString))
+			{
+				throw new InvalidOperationException(
+					"Connection string 'DefaultConnection' not found. For development without SQL Server, set Data:UseInMemoryDatabase to true.");
+			}
+
+			services.AddSingleton(new DbConnectionFactory(connectionString));
 			return services;
 		}
 	}

@@ -7,7 +7,7 @@ namespace MoneyManager.Core.UseCases.Categories
 {
 	public interface IGetCategoriesUseCase
 	{
-		Task<IReadOnlyList<Category>?> Execute();
+		Task<IReadOnlyList<Category>?> Execute(bool activeOnly = false);
 	}
 
 	public class GetCategoriesUseCase : IGetCategoriesUseCase
@@ -21,12 +21,12 @@ namespace MoneyManager.Core.UseCases.Categories
 			_logger = logger;
 		}
 
-		public async Task<IReadOnlyList<Category>?> Execute()
+		public async Task<IReadOnlyList<Category>?> Execute(bool activeOnly = false)
 		{
 			try
 			{
-				var categories = await _repository.GetAll();
-				_logger.LogDebug("Fetched {Count} categories", categories.Count);
+				var categories = await _repository.GetAll(activeOnly);
+				_logger.LogDebug("Fetched {Count} categories (activeOnly={ActiveOnly})", categories.Count, activeOnly);
 				return categories;
 			}
 			catch (Exception ex)

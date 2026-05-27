@@ -9,7 +9,7 @@ One-time configuration in the Azure portal before running Money Manager with aut
 3. Supported account types: choose based on who may sign in (single tenant is typical for personal/family use).
 4. Redirect URI:
    - Platform: **Single-page application**
-   - URIs: `https://localhost:5173` and `https://localhost:6548` (Aspire fixed port)
+   - URI: `https://localhost:5173` (Aspire / Vite dev port; avoid 6454–6553 on Windows — reserved by Hyper-V)
 5. Register and note the **Application (client) ID** and **Directory (tenant) ID**.
 
 ## 2. Expose an API scope
@@ -46,7 +46,7 @@ Grant admin consent if your tenant requires it.
 | `AzureAd:ClientId` | `{client-id}` |
 | `AzureAd:Audience` | `api://{client-id}` |
 | `AzureAd:AllowWebApiCallsWithMultipleIssuers` | `true` (accepts both v1 and v2 token issuers) |
-| `AllowedOrigins` | `https://localhost:5173;https://localhost:6548` (semicolon-separated) |
+| `AllowedOrigins` | `https://localhost:5173` (semicolon-separated if you add more) |
 
 Do **not** set `AzureAd:Issuer` or leave `AzureAd:Audience` empty in user secrets — those override `appsettings.*.json` and cause `401` token validation failures.
 
@@ -79,9 +79,9 @@ If `VITE_USE_API=true` but Azure variables are missing, the client shows a confi
 
 When running via `MoneyManager.AppHost`:
 
-- Client runs at `https://localhost:6548` (fixed in AppHost).
+- Client runs at `https://localhost:5173` (fixed in AppHost).
 - Add that redirect URI in Azure AD.
-- `AllowedOrigins` must include `https://localhost:6548`.
+- `AllowedOrigins` must include `https://localhost:5173`.
 - Azure AD values can live in user secrets or `appsettings.Development.json` / `appsettings.Local.json`.
 
 ## 6. User identity and data

@@ -8,15 +8,15 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Aspire.Microsoft.Data.SqlClient" Version="13.1.2" />
-    <PackageReference Include="Azure.Extensions.AspNetCore.Configuration.Secrets" Version="1.5.0" />
-    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.4" />
-    <PackageReference Include="Microsoft.Extensions.Logging.AzureAppServices" Version="10.0.4" />
-    <PackageReference Include="Microsoft.Identity.Web" Version="4.5.0" />
-    <PackageReference Include="Microsoft.Identity.Web.DownstreamApi" Version="4.5.0" />
-    <PackageReference Include="Microsoft.Identity.Web.GraphServiceClient" Version="4.5.0" />
-    <PackageReference Include="Microsoft.OpenApi" Version="3.4.0" />
-    <PackageReference Include="Swashbuckle.AspNetCore" Version="10.1.5" />
+    <PackageReference Include="Aspire.Microsoft.Data.SqlClient" Version="13.3.5" />
+    <PackageReference Include="Azure.Extensions.AspNetCore.Configuration.Secrets" Version="1.5.1" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.8" />
+    <PackageReference Include="Microsoft.Extensions.Logging.AzureAppServices" Version="10.0.8" />
+    <PackageReference Include="Microsoft.Identity.Web" Version="4.10.0" />
+    <PackageReference Include="Microsoft.Identity.Web.DownstreamApi" Version="4.10.0" />
+    <PackageReference Include="Microsoft.Identity.Web.GraphServiceClient" Version="4.10.0" />
+    <PackageReference Include="Microsoft.OpenApi" Version="3.5.4" />
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="10.1.7" />
   </ItemGroup>
 
   <ItemGroup>

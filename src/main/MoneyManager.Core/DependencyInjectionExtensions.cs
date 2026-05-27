@@ -23,6 +23,10 @@ namespace MoneyManager.Core
 			services.AddScoped<IBulkUpdateExpensesUseCase, BulkUpdateExpensesUseCase>();
 			services.AddScoped<IBulkDeleteExpensesUseCase, BulkDeleteExpensesUseCase>();
 			services.AddScoped<IGetCategoriesUseCase, GetCategoriesUseCase>();
+			services.AddScoped<IGetCategoryUseCase, GetCategoryUseCase>();
+			services.AddScoped<ICreateCategoryUseCase, CreateCategoryUseCase>();
+			services.AddScoped<IUpdateCategoryUseCase, UpdateCategoryUseCase>();
+			services.AddScoped<IDeleteCategoryUseCase, DeleteCategoryUseCase>();
 			services.AddScoped<IGetPaymentMethodsUseCase, GetPaymentMethodsUseCase>();
 			services.AddScoped<IGetExpenseSplitsUseCase, GetExpenseSplitsUseCase>();
 			services.AddScoped<ICreateExpenseSplitUseCase, CreateExpenseSplitUseCase>();

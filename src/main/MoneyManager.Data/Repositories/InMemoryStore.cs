@@ -2,6 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using MoneyManager.Core.Models;
+using MoneyManager.Core.Models.Input;
+using MoneyManager.Core.Repositories;
+using MoneyManager.Core.Utilities;
 
 namespace MoneyManager.Data.Repositories
 {
@@ -14,12 +17,24 @@ namespace MoneyManager.Data.Repositories
 		private readonly object _lock = new();
 		private readonly List<Expense> _expenses;
 		private readonly List<ExpenseSplit> _expenseSplits;
+		private readonly List<Category> _categories;
 		private int _nextExpenseId;
 		private int _nextSplitId;
+		private int _nextCategoryId;
 
 		public InMemoryStore()
 		{
 			_expenses = new List<Expense>(MockData.Expenses);
+			_categories = LegacyCategorySeed.Categories.Select(c => new Category
+			{
+				Category_I = c.Category_I,
+				Name = c.Name,
+				ParentCategory_I = c.ParentCategory_I,
+				Required = c.Required,
+				Archived = c.Archived
+			}).ToList();
+			_nextCategoryId = _categories.Count > 0 ? _categories.Max(c => c.Category_I) + 1 : 1;
+
 			_nextExpenseId = _expenses.Count > 0 ? _expenses.Count + 1 : 1;
 			foreach (var e in _expenses)
 			{
@@ -35,7 +50,101 @@ namespace MoneyManager.Data.Repositories
 			}
 		}
 
-		public IReadOnlyList<Category> Categories => MockData.Categories;
+		public IReadOnlyList<Category> GetCategories()
+		{
+			lock (_lock)
+				return FinalizeCategories(_categories);
+		}
+
+		public Category? GetCategoryById(int id)
+		{
+			lock (_lock)
+				return FinalizeCategories(_categories).FirstOrDefault(c => c.Category_I == id);
+		}
+
+		public CategoryMutationResult CreateCategory(CreateCategoryModel model)
+		{
+			lock (_lock)
+			{
+				var finalized = FinalizeCategories(_categories);
+				var validation = CategoryValidator.ValidateCreate(model, finalized);
+				if (validation != null)
+					return CategoryMutationResult.Error(validation);
+
+				var id = _nextCategoryId++;
+				var cat = new Category
+				{
+					Category_I = id,
+					Name = model.Name.Trim(),
+					ParentCategory_I = model.ParentCategory_I,
+					Required = model.Required,
+					Archived = false
+				};
+				_categories.Add(cat);
+				return CategoryMutationResult.Success(FinalizeCategories(_categories).First(c => c.Category_I == id));
+			}
+		}
+
+		public CategoryMutationResult UpdateCategory(int id, UpdateCategoryModel model)
+		{
+			lock (_lock)
+			{
+				var idx = _categories.FindIndex(c => c.Category_I == id);
+				if (idx < 0)
+					return CategoryMutationResult.NotFound();
+
+				var finalized = FinalizeCategories(_categories);
+				var current = finalized.First(c => c.Category_I == id);
+				var validation = CategoryValidator.ValidateUpdate(current, model, finalized);
+				if (validation != null)
+					return CategoryMutationResult.Error(validation);
+
+				var cat = _categories[idx];
+				if (model.Name != null)
+					cat.Name = model.Name.Trim();
+				if (model.ClearParent == true)
+					cat.ParentCategory_I = null;
+				else if (model.ParentCategory_I.HasValue)
+					cat.ParentCategory_I = model.ParentCategory_I;
+				if (model.Required.HasValue)
+					cat.Required = model.Required.Value;
+				if (model.Archived.HasValue)
+					cat.Archived = model.Archived.Value;
+
+				return CategoryMutationResult.Success(FinalizeCategories(_categories).First(c => c.Category_I == id));
+			}
+		}
+
+		public CategoryDeleteResult DeleteCategory(int id)
+		{
+			lock (_lock)
+			{
+				var idx = _categories.FindIndex(c => c.Category_I == id);
+				if (idx < 0)
+					return CategoryDeleteResult.NotFound();
+
+				var finalized = FinalizeCategories(_categories);
+				var current = finalized.First(c => c.Category_I == id);
+				var inUse = IsCategoryInUse(id);
+				var validation = CategoryValidator.ValidateDelete(current, finalized, inUse);
+				if (validation != null)
+					return CategoryDeleteResult.Error(validation);
+
+				_categories.RemoveAt(idx);
+				return CategoryDeleteResult.Ok();
+			}
+		}
+
+		public bool IsCategoryInUse(int categoryId)
+		{
+			lock (_lock)
+				return _expenses.Any(e => e.Category == categoryId)
+					|| _expenseSplits.Any(s => s.Category == categoryId);
+		}
+
+		private static IReadOnlyList<Category> FinalizeCategories(List<Category> categories) =>
+			CategoryTreeHelper.WithHasChildren(CategoryTreeHelper.SortForDisplay(categories.ToList()));
+
 		public IReadOnlyList<PaymentMethod> PaymentMethods => MockData.PaymentMethods;
 
 		public IReadOnlyList<Expense> GetExpenses()

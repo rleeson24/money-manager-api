@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using System.IO;
 using System.Reflection;
+using System.Text.RegularExpressions;
 using MoneyManager.Core.Models;
 using MoneyManager.Data.Repositories;
 using MoneyManager.Data.Utilities;
@@ -12,8 +13,9 @@ using Microsoft.Extensions.Options;
 namespace MoneyManager.Data.Bootstrap;
 
 /// <summary>
-/// Under .NET Aspire with SQL Server: applies schema (CreateTables.sql), ensures mock catalog rows exist,
-/// and inserts <see cref="MockData"/> expenses once per seed user when the database is empty for that user.
+/// Under .NET Aspire with SQL Server: applies DDL schema (CreateTables.sql), seeds catalog rows from
+/// <see cref="LegacyCategorySeed"/> / <see cref="LegacyPaymentMethodSeed"/>, and inserts
+/// <see cref="MockData"/> expenses once per seed user when the database is empty for that user.
 /// </summary>
 internal sealed class AspireSqlDevelopmentBootstrap : IHostedService
 {
@@ -46,7 +48,10 @@ internal sealed class AspireSqlDevelopmentBootstrap : IHostedService
 			return;
 		}
 
+		_logger.LogInformation("Aspire SQL bootstrap starting for seed user {UserId}.", seedUserId);
+
 		const int maxAttempts = 30;
+		Exception? lastException = null;
 		for (var attempt = 1; attempt <= maxAttempts; attempt++)
 		{
 			try
@@ -56,6 +61,7 @@ internal sealed class AspireSqlDevelopmentBootstrap : IHostedService
 			}
 			catch (Exception ex) when (attempt < maxAttempts && IsSqlConnectivityTransient(ex))
 			{
+				lastException = ex;
 				_logger.LogWarning(
 					ex,
 					"Aspire SQL bootstrap attempt {Attempt}/{Max} failed (SQL may still be starting); retrying in 2s.",
@@ -63,13 +69,22 @@ internal sealed class AspireSqlDevelopmentBootstrap : IHostedService
 					maxAttempts);
 				await Task.Delay(TimeSpan.FromSeconds(2), cancellationToken).ConfigureAwait(false);
 			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Aspire SQL bootstrap failed on attempt {Attempt}/{Max}.", attempt, maxAttempts);
+				throw;
+			}
 		}
+
+		_logger.LogError(lastException, "Aspire SQL bootstrap failed after {Max} attempts.", maxAttempts);
+		throw lastException ?? new InvalidOperationException("Aspire SQL bootstrap failed after all retry attempts.");
 	}
 
 	private async Task RunBootstrapCoreAsync(Guid seedUserId, CancellationToken cancellationToken)
 	{
 		var schemaSql = await LoadSchemaSqlAsync(cancellationToken).ConfigureAwait(false);
 		await ApplySchemaAsync(schemaSql, cancellationToken).ConfigureAwait(false);
+		await SeedCatalogAsync(cancellationToken).ConfigureAwait(false);
 
 		var categoryMap = await BuildCategoryMapAsync(cancellationToken).ConfigureAwait(false);
 		var paymentMethodMap = await BuildPaymentMethodMapAsync(cancellationToken).ConfigureAwait(false);
@@ -172,67 +187,177 @@ internal sealed class AspireSqlDevelopmentBootstrap : IHostedService
 
 	private async Task ApplySchemaAsync(string schemaSql, CancellationToken cancellationToken)
 	{
+		var batches = SplitSqlBatches(schemaSql);
 		await using var connection = _connectionFactory.CreateConnection();
 		await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
-		await using var command = connection.CreateCommand();
-		command.CommandText = schemaSql;
-		command.CommandTimeout = 120;
-		await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
-		_logger.LogInformation("Aspire SQL bootstrap: applied schema script.");
+
+		for (var i = 0; i < batches.Count; i++)
+		{
+			cancellationToken.ThrowIfCancellationRequested();
+			await using var command = connection.CreateCommand();
+			command.CommandText = batches[i];
+			command.CommandTimeout = 120;
+			await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+		}
+
+		_logger.LogInformation("Aspire SQL bootstrap: applied schema script ({BatchCount} batch(es)).", batches.Count);
+
+		var tableCountObj = await ExecuteScalarOnConnectionAsync(
+			connection,
+			"SELECT COUNT(*) FROM sys.tables WHERE schema_id = SCHEMA_ID('dbo')",
+			cancellationToken).ConfigureAwait(false);
+		var tableCount = tableCountObj != null ? Convert.ToInt32(tableCountObj) : 0;
+		if (tableCount == 0)
+		{
+			throw new InvalidOperationException(
+				"Aspire SQL bootstrap applied the schema script but no dbo tables were created.");
+		}
+
+		_logger.LogInformation("Aspire SQL bootstrap: verified {TableCount} dbo table(s) exist.", tableCount);
 	}
+
+	private async Task SeedCatalogAsync(CancellationToken cancellationToken)
+	{
+		await using var connection = _connectionFactory.CreateConnection();
+		await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
+
+		await ExecuteNonQueryOnConnectionAsync(connection, "SET IDENTITY_INSERT dbo.Categories ON;", cancellationToken)
+			.ConfigureAwait(false);
+		try
+		{
+			foreach (var category in LegacyCategorySeed.Categories)
+			{
+				cancellationToken.ThrowIfCancellationRequested();
+				await ExecuteNonQueryOnConnectionAsync(
+					connection,
+					@"MERGE dbo.Categories AS t
+					  USING (SELECT @Category_I AS Category_I, @Name AS Name, @ParentCategory_I AS ParentCategory_I,
+					                @Required AS Required, @Archived AS Archived) AS s
+					  ON t.Category_I = s.Category_I
+					  WHEN MATCHED THEN
+					      UPDATE SET Name = s.Name, ParentCategory_I = s.ParentCategory_I,
+					                 Required = s.Required, Archived = s.Archived
+					  WHEN NOT MATCHED BY TARGET THEN
+					      INSERT (Category_I, Name, ParentCategory_I, Required, Archived)
+					      VALUES (s.Category_I, s.Name, s.ParentCategory_I, s.Required, s.Archived);",
+					cancellationToken,
+					[
+						new SqlParameter("@Category_I", category.Category_I),
+						new SqlParameter("@Name", category.Name),
+						new SqlParameter("@ParentCategory_I", (object?)category.ParentCategory_I ?? DBNull.Value),
+						new SqlParameter("@Required", category.Required),
+						new SqlParameter("@Archived", category.Archived)
+					]).ConfigureAwait(false);
+			}
+		}
+		finally
+		{
+			await ExecuteNonQueryOnConnectionAsync(connection, "SET IDENTITY_INSERT dbo.Categories OFF;", cancellationToken)
+				.ConfigureAwait(false);
+		}
+
+		await ExecuteNonQueryOnConnectionAsync(connection, "SET IDENTITY_INSERT dbo.PaymentMethods ON;", cancellationToken)
+			.ConfigureAwait(false);
+		try
+		{
+			foreach (var paymentMethod in LegacyPaymentMethodSeed.PaymentMethods)
+			{
+				cancellationToken.ThrowIfCancellationRequested();
+				await ExecuteNonQueryOnConnectionAsync(
+					connection,
+					@"MERGE dbo.PaymentMethods AS t
+					  USING (SELECT @Id AS ID, @PaymentMethod AS PaymentMethod) AS s
+					  ON t.ID = s.ID
+					  WHEN MATCHED THEN
+					      UPDATE SET PaymentMethod = s.PaymentMethod
+					  WHEN NOT MATCHED BY TARGET THEN
+					      INSERT (ID, PaymentMethod) VALUES (s.ID, s.PaymentMethod);",
+					cancellationToken,
+					[
+						new SqlParameter("@Id", paymentMethod.ID),
+						new SqlParameter("@PaymentMethod", paymentMethod.PaymentMethodName)
+					]).ConfigureAwait(false);
+			}
+		}
+		finally
+		{
+			await ExecuteNonQueryOnConnectionAsync(connection, "SET IDENTITY_INSERT dbo.PaymentMethods OFF;", cancellationToken)
+				.ConfigureAwait(false);
+		}
+
+		_logger.LogInformation(
+			"Aspire SQL bootstrap: seeded {CategoryCount} categor(ies) and {PaymentMethodCount} payment method(s).",
+			LegacyCategorySeed.Categories.Count,
+			LegacyPaymentMethodSeed.PaymentMethods.Count);
+	}
+
+	private static async Task ExecuteNonQueryOnConnectionAsync(
+		SqlConnection connection,
+		string commandText,
+		CancellationToken cancellationToken,
+		IEnumerable<SqlParameter>? parameters = null)
+	{
+		await using var command = connection.CreateCommand();
+		command.CommandText = commandText;
+		command.CommandTimeout = 120;
+		if (parameters != null)
+			command.Parameters.AddRange(parameters.ToArray());
+		await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+	}
+
+	private static async Task<object?> ExecuteScalarOnConnectionAsync(
+		SqlConnection connection,
+		string commandText,
+		CancellationToken cancellationToken)
+	{
+		await using var command = connection.CreateCommand();
+		command.CommandText = commandText;
+		command.CommandTimeout = 120;
+		return await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
+	}
+
+	/// <summary>
+	/// SQL Server compiles an entire batch before running it; ALTER ADD + MERGE on new columns
+	/// must be split on GO (see CreateTables.sql).
+	/// </summary>
+	private static IReadOnlyList<string> SplitSqlBatches(string sql) =>
+		Regex.Split(sql, @"^\s*GO\s*;?\s*$", RegexOptions.Multiline | RegexOptions.IgnoreCase)
+			.Select(batch => batch.Trim())
+			.Where(batch => batch.Length > 0)
+			.ToList();
 
 	private async Task<Dictionary<int, int>> BuildCategoryMapAsync(CancellationToken cancellationToken)
 	{
 		var map = new Dictionary<int, int>();
-		foreach (var c in MockData.Categories)
+		foreach (var c in LegacyCategorySeed.Categories)
 		{
 			cancellationToken.ThrowIfCancellationRequested();
-			await EnsureCategoryAsync(c.Name, cancellationToken).ConfigureAwait(false);
 			var idObj = await _db.ExecuteScalar(
-				"SELECT Category_I FROM dbo.Categories WHERE Name = @Name",
-				[new SqlParameter("@Name", c.Name)]).ConfigureAwait(false);
+				"SELECT Category_I FROM dbo.Categories WHERE Category_I = @Id",
+				[new SqlParameter("@Id", c.Category_I)]).ConfigureAwait(false);
 			if (idObj == null)
-				throw new InvalidOperationException($"Category '{c.Name}' missing after ensure.");
+				throw new InvalidOperationException($"Category {c.Category_I} '{c.Name}' missing after schema seed.");
 			map[c.Category_I] = Convert.ToInt32(idObj);
 		}
 
 		return map;
 	}
 
-	private Task EnsureCategoryAsync(string name, CancellationToken cancellationToken)
-	{
-		cancellationToken.ThrowIfCancellationRequested();
-		return _db.ExecuteNonQuery(
-			@"IF NOT EXISTS (SELECT 1 FROM dbo.Categories WHERE Name = @Name)
-				INSERT INTO dbo.Categories (Name) VALUES (@Name);",
-			[new SqlParameter("@Name", name)]);
-	}
-
 	private async Task<Dictionary<int, int>> BuildPaymentMethodMapAsync(CancellationToken cancellationToken)
 	{
 		var map = new Dictionary<int, int>();
-		foreach (var pm in MockData.PaymentMethods)
+		foreach (var pm in LegacyPaymentMethodSeed.PaymentMethods)
 		{
 			cancellationToken.ThrowIfCancellationRequested();
-			await EnsurePaymentMethodAsync(pm.PaymentMethodName, cancellationToken).ConfigureAwait(false);
 			var idObj = await _db.ExecuteScalar(
-				"SELECT ID FROM dbo.PaymentMethods WHERE PaymentMethod = @Name",
-				[new SqlParameter("@Name", pm.PaymentMethodName)]).ConfigureAwait(false);
+				"SELECT ID FROM dbo.PaymentMethods WHERE ID = @Id",
+				[new SqlParameter("@Id", pm.ID)]).ConfigureAwait(false);
 			if (idObj == null)
-				throw new InvalidOperationException($"Payment method '{pm.PaymentMethodName}' missing after ensure.");
+				throw new InvalidOperationException($"Payment method {pm.ID} '{pm.PaymentMethodName}' missing after schema seed.");
 			map[pm.ID] = Convert.ToInt32(idObj);
 		}
 
 		return map;
-	}
-
-	private Task EnsurePaymentMethodAsync(string name, CancellationToken cancellationToken)
-	{
-		cancellationToken.ThrowIfCancellationRequested();
-		return _db.ExecuteNonQuery(
-			@"IF NOT EXISTS (SELECT 1 FROM dbo.PaymentMethods WHERE PaymentMethod = @Name)
-				INSERT INTO dbo.PaymentMethods (PaymentMethod) VALUES (@Name);",
-			[new SqlParameter("@Name", name)]);
 	}
 
 	private async Task<int> InsertExpenseAsync(

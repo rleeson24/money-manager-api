@@ -185,13 +185,6 @@ app.UseAuthorization();
 
 app.MapDefaultEndpoints();
 
-// Minimal API endpoints (replacing CategoriesController and PaymentMethodsController)
-app.MapGet("/api/categories", async (IGetCategoriesUseCase getCategoriesUseCase) =>
-{
-	var categories = await getCategoriesUseCase.Execute();
-	return categories != null ? Results.Ok(categories) : Results.Problem();
-}).RequireAuthorization().WithTags("Categories");
-
 app.MapGet("/api/payment-methods", async (IGetPaymentMethodsUseCase getPaymentMethodsUseCase) =>
 {
 	var paymentMethods = await getPaymentMethodsUseCase.Execute();

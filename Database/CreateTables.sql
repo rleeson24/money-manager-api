@@ -6,29 +6,45 @@ IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[Ca
 BEGIN
     CREATE TABLE [dbo].[Categories] (
         [Category_I] INT IDENTITY(1,1) PRIMARY KEY,
-        [Name] NVARCHAR(100) NOT NULL
+        [Name] NVARCHAR(100) NOT NULL,
+        [ParentCategory_I] INT NULL,
+        [Required] BIT NOT NULL DEFAULT 0,
+        [Archived] BIT NOT NULL DEFAULT 0,
+        CONSTRAINT [FK_Categories_Parent] FOREIGN KEY ([ParentCategory_I]) REFERENCES [dbo].[Categories]([Category_I])
     );
-    
-    -- Insert default categories
-    INSERT INTO [dbo].[Categories] ([Name]) VALUES
-        ('Food'),
-        ('Transportation'),
-        ('Housing'),
-        ('Utilities'),
-        ('Entertainment'),
-        ('Healthcare'),
-        ('Shopping'),
-        ('Education'),
-        ('Health & Fitness'),
-        ('Other'),
-        ('Split');
+    CREATE INDEX [IX_Categories_ParentCategory_I] ON [dbo].[Categories]([ParentCategory_I]);
 END
 
--- Migration: ensure "Split" category exists (for existing DBs created before Split was added)
+-- Migration: add hierarchy columns to existing Categories table
 IF EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[Categories]') AND type in (N'U'))
+   AND COL_LENGTH('dbo.Categories', 'ParentCategory_I') IS NULL
 BEGIN
-    IF NOT EXISTS (SELECT 1 FROM [dbo].[Categories] WHERE [Name] = N'Split')
-        INSERT INTO [dbo].[Categories] ([Name]) VALUES (N'Split');
+    ALTER TABLE [dbo].[Categories] ADD [ParentCategory_I] INT NULL;
+END
+
+IF EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[Categories]') AND type in (N'U'))
+   AND COL_LENGTH('dbo.Categories', 'Required') IS NULL
+BEGIN
+    ALTER TABLE [dbo].[Categories] ADD [Required] BIT NOT NULL DEFAULT 0;
+END
+
+IF EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[Categories]') AND type in (N'U'))
+   AND COL_LENGTH('dbo.Categories', 'Archived') IS NULL
+BEGIN
+    ALTER TABLE [dbo].[Categories] ADD [Archived] BIT NOT NULL DEFAULT 0;
+END
+
+IF EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[Categories]') AND type in (N'U'))
+   AND NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name = N'FK_Categories_Parent')
+BEGIN
+    ALTER TABLE [dbo].[Categories] ADD CONSTRAINT [FK_Categories_Parent]
+        FOREIGN KEY ([ParentCategory_I]) REFERENCES [dbo].[Categories]([Category_I]);
+END
+
+IF EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[Categories]') AND type in (N'U'))
+   AND NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'IX_Categories_ParentCategory_I' AND object_id = OBJECT_ID(N'[dbo].[Categories]'))
+BEGIN
+    CREATE INDEX [IX_Categories_ParentCategory_I] ON [dbo].[Categories]([ParentCategory_I]);
 END
 
 -- PaymentMethods Table
@@ -38,15 +54,6 @@ BEGIN
         [ID] INT IDENTITY(1,1) PRIMARY KEY,
         [PaymentMethod] NVARCHAR(100) NOT NULL
     );
-    
-    -- Insert default payment methods
-    INSERT INTO [dbo].[PaymentMethods] ([PaymentMethod]) VALUES
-        ('Credit Card'),
-        ('Debit Card'),
-        ('Cash'),
-        ('Bank Transfer'),
-        ('PayPal'),
-        ('Venmo');
 END
 
 -- Expenses Table
@@ -120,3 +127,5 @@ BEGIN
     );
     CREATE INDEX [IX_Expenses_split_Expense_I] ON [dbo].[Expenses_split]([Expense_I]);
 END
+
+-- Catalog seed data: applied by AspireSqlDevelopmentBootstrap (C#) and SeedCategories.sql / SeedPaymentMethods.sql for manual runs.
