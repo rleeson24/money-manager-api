@@ -1,5 +1,11 @@
+-- ============================================================================
+-- DEVELOPMENT ONLY — do not run on production.
+-- ============================================================================
 -- Legacy category seed (Categories.txt). ParentCategory_I NULL = top-level.
--- Idempotent MERGE by Category_I; safe to re-run after schema migration.
+-- Idempotent MERGE by Category_I; safe to re-run after CreateTables.sql in dev.
+-- Production: use CreateTables.sql only; add categories via the API or your import.
+-- Aspire local SQL also seeds from LegacyCategorySeed.cs (not used in Azure deploy).
+-- ============================================================================
 
 IF EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[Categories]') AND type in (N'U'))
 BEGIN

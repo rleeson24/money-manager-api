@@ -30,7 +30,9 @@ Configure the following settings:
 
 ### Database Setup
 
-Run the SQL script in `Database/CreateTables.sql` to create the required database tables.
+**Production:** Run `Database/CreateTables.sql` (schema only), then `Database/GrantMmAppAccess.sql` if using the `mm` managed identity. Do **not** run `SeedCategories.sql` or `SeedPaymentMethods.sql` in production — those are legacy dev catalog data with fixed IDs.
+
+**Local dev (Aspire):** Schema and catalog seed run automatically via `AspireSqlDevelopmentBootstrap` when using the AppHost SQL container. The `Seed*.sql` scripts are optional manual equivalents for non-Aspire SQL setups.
 
 ## Endpoints
 

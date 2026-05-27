@@ -1,4 +1,10 @@
+-- ============================================================================
+-- DEVELOPMENT ONLY — do not run on production.
+-- ============================================================================
 -- Payment method seed (fixed IDs). Idempotent MERGE by ID.
+-- Production: use CreateTables.sql only; add payment methods via the API or your import.
+-- Aspire local SQL also seeds from LegacyPaymentMethodSeed.cs (not used in Azure deploy).
+-- ============================================================================
 IF EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[PaymentMethods]') AND type in (N'U'))
 BEGIN
     SET IDENTITY_INSERT [dbo].[PaymentMethods] ON;
