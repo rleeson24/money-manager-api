@@ -4,6 +4,7 @@ namespace MoneyManager.Core.Models
 {
 	public class PaymentMethod
 	{
+		[JsonPropertyName("id")]
 		public int ID { get; set; }
 		[JsonPropertyName("PaymentMethod")]
 		public string PaymentMethodName { get; set; } = string.Empty;

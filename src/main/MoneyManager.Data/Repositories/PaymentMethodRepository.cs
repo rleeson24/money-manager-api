@@ -40,11 +40,16 @@ namespace MoneyManager.Data.Repositories
 					while (await sqlReader.ReadAsync())
 						result.Add(await _readerMapper.FromDbReader(sqlReader));
 				});
-			return result.Select(db => new PaymentMethod
-			{
-				ID = db.ID,
-				PaymentMethodName = db.PaymentMethod
-			}).ToList();
+			return result
+				.GroupBy(db => db.PaymentMethod, StringComparer.OrdinalIgnoreCase)
+				.Select(g => g.OrderBy(x => x.ID).First())
+				.OrderBy(db => db.PaymentMethod)
+				.Select(db => new PaymentMethod
+				{
+					ID = db.ID,
+					PaymentMethodName = db.PaymentMethod
+				})
+				.ToList();
 		}
 	}
 }
