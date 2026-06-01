@@ -173,7 +173,12 @@ namespace MoneyManager.API.Controllers
 				}
 				else if (value.ValueKind == JsonValueKind.True || value.ValueKind == JsonValueKind.False)
 				{
-					var boolKey = key == "isSplit" ? "IsSplit" : key;
+					var boolKey = key switch
+					{
+						"isSplit" => "IsSplit",
+						"excludeFromCredit" => "ExcludeFromCredit",
+						_ => key
+					};
 					updates[boolKey] = value.GetBoolean();
 				}
 			}

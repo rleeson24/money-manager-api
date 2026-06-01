@@ -26,6 +26,7 @@ namespace MoneyManager.Data.Mappers
 				CreatedDate = reader.GetDateTime(reader.GetOrdinal("CreatedDate")),
 				ModifiedDate = reader.GetDateTime(reader.GetOrdinal("ModifiedDate")),
 				IsSplit = reader.GetBoolean(reader.GetOrdinal("IsSplit")),
+				ExcludeFromCredit = reader.GetBoolean(reader.GetOrdinal("ExcludeFromCredit")),
 				CreatedBy = createdBy
 			};
 		}

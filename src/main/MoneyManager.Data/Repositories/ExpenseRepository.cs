@@ -117,6 +117,7 @@ namespace MoneyManager.Data.Repositories
 					CreatedDateTime = now,
 					ModifiedDateTime = now,
 					IsSplit = model.IsSplit,
+					ExcludeFromCredit = model.ExcludeFromCredit,
 					CreatedBy = model.CreatedBy ?? string.Empty
 				});
 			}
@@ -168,7 +169,8 @@ namespace MoneyManager.Data.Repositories
 					DatePaid = updates.ContainsKey("DatePaid") ? (DateTime?)updates["DatePaid"] : current.DatePaid,
 					CreatedDateTime = current.CreatedDateTime,
 					ModifiedDateTime = _nowProvider.UtcNow,
-					IsSplit = updates.TryGetValue("IsSplit", out var isSplitObj) && isSplitObj is bool isSplitVal ? isSplitVal : current.IsSplit
+					IsSplit = updates.TryGetValue("IsSplit", out var isSplitObj) && isSplitObj is bool isSplitVal ? isSplitVal : current.IsSplit,
+					ExcludeFromCredit = updates.TryGetValue("ExcludeFromCredit", out var excludeObj) && excludeObj is bool excludeVal ? excludeVal : current.ExcludeFromCredit
 				};
 				return await Task.FromResult(UpdateExpenseResult.Success(patched));
 			}
@@ -382,8 +384,8 @@ namespace MoneyManager.Data.Repositories
 		{
 			if (expense.Expense_I == 0)
 			{
-				var sql = @"INSERT INTO Expenses (ExpenseDate, Expense, Amount, Currency, PaymentMethod, Category, DatePaid, UserId, IsSplit, CreatedDate, ModifiedDate, CreatedBy)
-							VALUES (@ExpenseDate, @Expense, @Amount, @Currency, @PaymentMethod, @Category, @DatePaid, @UserId, @IsSplit, @CreatedDate, @ModifiedDate, @CreatedBy);
+				var sql = @"INSERT INTO Expenses (ExpenseDate, Expense, Amount, Currency, PaymentMethod, Category, DatePaid, UserId, IsSplit, ExcludeFromCredit, CreatedDate, ModifiedDate, CreatedBy)
+							VALUES (@ExpenseDate, @Expense, @Amount, @Currency, @PaymentMethod, @Category, @DatePaid, @UserId, @IsSplit, @ExcludeFromCredit, @CreatedDate, @ModifiedDate, @CreatedBy);
 							SELECT CAST(SCOPE_IDENTITY() as int);";
 
 				var now = _nowProvider.UtcNow;
@@ -397,6 +399,7 @@ namespace MoneyManager.Data.Repositories
 					new SqlParameter("@DatePaid", (object?)expense.DatePaid ?? DBNull.Value),
 					new SqlParameter("@UserId", userId),
 					new SqlParameter("@IsSplit", expense.IsSplit),
+					new SqlParameter("@ExcludeFromCredit", expense.ExcludeFromCredit),
 					new SqlParameter("@CreatedDate", now),
 					new SqlParameter("@ModifiedDate", now),
 					new SqlParameter("@CreatedBy", expense.CreatedBy)
@@ -409,7 +412,7 @@ namespace MoneyManager.Data.Repositories
 			var updateSql = @"UPDATE Expenses 
 				SET ExpenseDate = @ExpenseDate, Expense = @Expense, Amount = @Amount, Currency = @Currency,
 					PaymentMethod = @PaymentMethod, Category = @Category, DatePaid = @DatePaid, 
-					IsSplit = @IsSplit, ModifiedDate = @ModifiedDate
+					IsSplit = @IsSplit, ExcludeFromCredit = @ExcludeFromCredit, ModifiedDate = @ModifiedDate
 				WHERE Expense_I = @Id AND UserId = @UserId
 					AND CAST(ModifiedDate AS datetime2(3)) = CAST(@ExpectedModifiedDate AS datetime2(3))";
 
@@ -423,6 +426,7 @@ namespace MoneyManager.Data.Repositories
 				new SqlParameter("@Category", (object?)expense.Category ?? DBNull.Value),
 				new SqlParameter("@DatePaid", (object?)expense.DatePaid ?? DBNull.Value),
 				new SqlParameter("@IsSplit", expense.IsSplit),
+				new SqlParameter("@ExcludeFromCredit", expense.ExcludeFromCredit),
 				new SqlParameter("@ModifiedDate", _nowProvider.UtcNow),
 				new SqlParameter("@UserId", userId),
 				new SqlParameter("@ExpectedModifiedDate", (object?)expectedModifiedDateTime ?? DBNull.Value)
@@ -498,6 +502,11 @@ namespace MoneyManager.Data.Repositories
 			{
 				setClauses.Add("IsSplit = @IsSplit");
 				parameters.Add(new SqlParameter("@IsSplit", updates["IsSplit"] is bool b && b));
+			}
+			if (updates.ContainsKey("ExcludeFromCredit"))
+			{
+				setClauses.Add("ExcludeFromCredit = @ExcludeFromCredit");
+				parameters.Add(new SqlParameter("@ExcludeFromCredit", updates["ExcludeFromCredit"] is bool exclude && exclude));
 			}
 
 			if (!setClauses.Any())

@@ -10,6 +10,7 @@ namespace MoneyManager.Core.Models.Input
 		public int? Category { get; set; }
 		public DateTime? DatePaid { get; set; }
 		public bool IsSplit { get; set; }
+		public bool ExcludeFromCredit { get; set; }
         public string? CreatedBy { get; set; }
     }
 }

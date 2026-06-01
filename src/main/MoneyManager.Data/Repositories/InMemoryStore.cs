@@ -198,6 +198,7 @@ namespace MoneyManager.Data.Repositories
 					CreatedDateTime = expense.CreatedDateTime,
 					ModifiedDateTime = expense.ModifiedDateTime,
 					IsSplit = expense.IsSplit,
+					ExcludeFromCredit = expense.ExcludeFromCredit,
 					CreatedBy = expense.CreatedBy
 				};
 				_expenses.Add(added);

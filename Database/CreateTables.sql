@@ -87,6 +87,7 @@ BEGIN
         [DatePaid] DATETIME2 NULL,
         [UserId] UNIQUEIDENTIFIER NOT NULL,
         [IsSplit] BIT NOT NULL DEFAULT 0,
+        [ExcludeFromCredit] BIT NOT NULL DEFAULT 0,
         [CreatedDate] DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
         [ModifiedDate] DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
         [CreatedBy] NVARCHAR(100) NOT NULL,
@@ -111,6 +112,13 @@ IF EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[Expens
    AND COL_LENGTH('dbo.Expenses', 'IsSplit') IS NULL
 BEGIN
     ALTER TABLE [dbo].[Expenses] ADD [IsSplit] BIT NOT NULL DEFAULT 0;
+END
+GO
+
+IF EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[Expenses]') AND type in (N'U'))
+   AND COL_LENGTH('dbo.Expenses', 'ExcludeFromCredit') IS NULL
+BEGIN
+    ALTER TABLE [dbo].[Expenses] ADD [ExcludeFromCredit] BIT NOT NULL DEFAULT 0;
 END
 GO
 

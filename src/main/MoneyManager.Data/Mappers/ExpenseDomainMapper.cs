@@ -32,6 +32,7 @@ namespace MoneyManager.Data.Mappers
 				CreatedDateTime = db.CreatedDate,
 				ModifiedDateTime = db.ModifiedDate,
 				IsSplit = db.IsSplit,
+				ExcludeFromCredit = db.ExcludeFromCredit,
 				CreatedBy = db.CreatedBy
 			};
 		}
@@ -50,6 +51,7 @@ namespace MoneyManager.Data.Mappers
 				UserId = userId,
 				CreatedDate = _nowProvider.UtcNow,
 				IsSplit = model.IsSplit,
+				ExcludeFromCredit = model.ExcludeFromCredit,
 				CreatedBy = model.CreatedBy ?? userId.ToString()
 			};
 		}
@@ -77,6 +79,7 @@ namespace MoneyManager.Data.Mappers
 			existing.DatePaid = expense.DatePaid;
 			existing.ModifiedDate = _nowProvider.UtcNow;
 			existing.IsSplit = expense.IsSplit;
+			existing.ExcludeFromCredit = expense.ExcludeFromCredit;
 		}
 	}
 }

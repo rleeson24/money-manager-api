@@ -51,6 +51,7 @@ namespace MoneyManager.Data.Repositories
 				CreatedDateTime = now,
 				ModifiedDateTime = now,
 				IsSplit = model.IsSplit,
+				ExcludeFromCredit = model.ExcludeFromCredit,
 				CreatedBy = model.CreatedBy ?? userId.ToString()
 			};
 			var added = _store.AddExpense(expense);
@@ -76,6 +77,7 @@ namespace MoneyManager.Data.Repositories
 				CreatedDateTime = existing.CreatedDateTime,
 				ModifiedDateTime = expense.ModifiedDateTime,
 				IsSplit = expense.IsSplit,
+				ExcludeFromCredit = expense.ExcludeFromCredit,
 				CreatedBy = existing.CreatedBy
 			};
 			if (!_store.UpdateExpense(id, toSave))
@@ -102,6 +104,7 @@ namespace MoneyManager.Data.Repositories
 				CreatedDateTime = current.CreatedDateTime,
 				ModifiedDateTime = _nowProvider.UtcNow,
 				IsSplit = updates.TryGetValue("IsSplit", out var isSplitObj) && isSplitObj is bool isSplitVal ? isSplitVal : current.IsSplit,
+				ExcludeFromCredit = updates.TryGetValue("ExcludeFromCredit", out var excludeObj) && excludeObj is bool excludeVal ? excludeVal : current.ExcludeFromCredit,
 				CreatedBy = current.CreatedBy
 			};
 			_store.UpdateExpense(id, patched);
@@ -126,6 +129,7 @@ namespace MoneyManager.Data.Repositories
 				if (updates.ContainsKey("Category")) e.Category = (int?)updates["Category"];
 				if (updates.ContainsKey("DatePaid")) e.DatePaid = (DateTime?)updates["DatePaid"];
 				if (updates.TryGetValue("IsSplit", out var isSplitObj) && isSplitObj is bool isSplitVal) e.IsSplit = isSplitVal;
+				if (updates.TryGetValue("ExcludeFromCredit", out var excludeObj) && excludeObj is bool excludeVal) e.ExcludeFromCredit = excludeVal;
 				e.ModifiedDateTime = now;
 			});
 			return Task.FromResult(count > 0);
