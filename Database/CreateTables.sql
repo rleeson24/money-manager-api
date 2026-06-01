@@ -81,6 +81,7 @@ BEGIN
         [ExpenseDate] DATETIME2 NOT NULL,
         [Expense] NVARCHAR(500) NOT NULL,
         [Amount] DECIMAL(18,2) NOT NULL,
+        [Currency] NVARCHAR(10) NOT NULL DEFAULT 'USD',
         [PaymentMethod] INT NULL,
         [Category] INT NULL,
         [DatePaid] DATETIME2 NULL,
@@ -128,6 +129,13 @@ IF EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[Expens
 BEGIN
     UPDATE [dbo].[Expenses] SET [CreatedBy] = CAST([UserId] AS NVARCHAR(50)) WHERE [CreatedBy] IS NULL;
     ALTER TABLE [dbo].[Expenses] ALTER COLUMN [CreatedBy] NVARCHAR(100) NOT NULL;
+END
+GO
+
+IF EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[Expenses]') AND type in (N'U'))
+   AND COL_LENGTH('dbo.Expenses', 'Currency') IS NULL
+BEGIN
+    ALTER TABLE [dbo].[Expenses] ADD [Currency] NVARCHAR(10) NOT NULL DEFAULT 'USD';
 END
 GO
 

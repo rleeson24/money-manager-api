@@ -110,6 +110,7 @@ namespace MoneyManager.Data.Repositories
 					ExpenseDate = model.ExpenseDate,
 					ExpenseDescription = model.Expense,
 					Amount = model.Amount,
+					Currency = string.IsNullOrWhiteSpace(model.Currency) ? "USD" : model.Currency,
 					PaymentMethod = model.PaymentMethod,
 					Category = model.Category,
 					DatePaid = model.DatePaid,
@@ -161,6 +162,7 @@ namespace MoneyManager.Data.Repositories
 					ExpenseDate = updates.TryGetValue("ExpenseDate", out var d) && d is DateTime dt ? dt : current.ExpenseDate,
 					ExpenseDescription = updates.TryGetValue("Expense", out var desc) && desc is string s ? s : current.ExpenseDescription,
 					Amount = updates.TryGetValue("Amount", out var a) && a is decimal amt ? amt : current.Amount,
+					Currency = updates.TryGetValue("Currency", out var cur) && cur is string curStr ? curStr : current.Currency,
 					PaymentMethod = updates.ContainsKey("PaymentMethod") ? (int?)updates["PaymentMethod"] : current.PaymentMethod,
 					Category = updates.ContainsKey("Category") ? (int?)updates["Category"] : current.Category,
 					DatePaid = updates.ContainsKey("DatePaid") ? (DateTime?)updates["DatePaid"] : current.DatePaid,
@@ -380,8 +382,8 @@ namespace MoneyManager.Data.Repositories
 		{
 			if (expense.Expense_I == 0)
 			{
-				var sql = @"INSERT INTO Expenses (ExpenseDate, Expense, Amount, PaymentMethod, Category, DatePaid, UserId, IsSplit, CreatedDate, ModifiedDate, CreatedBy)
-							VALUES (@ExpenseDate, @Expense, @Amount, @PaymentMethod, @Category, @DatePaid, @UserId, @IsSplit, @CreatedDate, @ModifiedDate, @CreatedBy);
+				var sql = @"INSERT INTO Expenses (ExpenseDate, Expense, Amount, Currency, PaymentMethod, Category, DatePaid, UserId, IsSplit, CreatedDate, ModifiedDate, CreatedBy)
+							VALUES (@ExpenseDate, @Expense, @Amount, @Currency, @PaymentMethod, @Category, @DatePaid, @UserId, @IsSplit, @CreatedDate, @ModifiedDate, @CreatedBy);
 							SELECT CAST(SCOPE_IDENTITY() as int);";
 
 				var now = _nowProvider.UtcNow;
@@ -389,6 +391,7 @@ namespace MoneyManager.Data.Repositories
 					new SqlParameter("@ExpenseDate", expense.ExpenseDate),
 					new SqlParameter("@Expense", expense.Expense),
 					new SqlParameter("@Amount", expense.Amount),
+					new SqlParameter("@Currency", string.IsNullOrWhiteSpace(expense.Currency) ? "USD" : expense.Currency),
 					new SqlParameter("@PaymentMethod", (object?)expense.PaymentMethod ?? DBNull.Value),
 					new SqlParameter("@Category", (object?)expense.Category ?? DBNull.Value),
 					new SqlParameter("@DatePaid", (object?)expense.DatePaid ?? DBNull.Value),
@@ -404,7 +407,7 @@ namespace MoneyManager.Data.Repositories
 
 			// Optimistic concurrency: only update if ModifiedDate matches
 			var updateSql = @"UPDATE Expenses 
-				SET ExpenseDate = @ExpenseDate, Expense = @Expense, Amount = @Amount, 
+				SET ExpenseDate = @ExpenseDate, Expense = @Expense, Amount = @Amount, Currency = @Currency,
 					PaymentMethod = @PaymentMethod, Category = @Category, DatePaid = @DatePaid, 
 					IsSplit = @IsSplit, ModifiedDate = @ModifiedDate
 				WHERE Expense_I = @Id AND UserId = @UserId
@@ -455,6 +458,11 @@ namespace MoneyManager.Data.Repositories
 			{
 				setClauses.Add("Amount = @Amount");
 				parameters.Add(new SqlParameter("@Amount", updates["Amount"]));
+			}
+			if (updates.ContainsKey("Currency") && updates["Currency"] != null)
+			{
+				setClauses.Add("Currency = @Currency");
+				parameters.Add(new SqlParameter("@Currency", updates["Currency"]));
 			}
 			if (updates.ContainsKey("PaymentMethod"))
 			{

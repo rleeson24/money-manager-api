@@ -9,6 +9,7 @@ namespace MoneyManager.Data.Mappers
 		{
 			var paymentMethodOrdinal = reader.GetOrdinal("PaymentMethod");
 			var categoryOrdinal = reader.GetOrdinal("Category");
+			var currencyOrdinal = reader.GetOrdinal("Currency");
 			var createdByOrdinal = reader.GetOrdinal("CreatedBy");
 			var createdBy = reader.GetString(createdByOrdinal);
 			return new DbExpense
@@ -17,6 +18,7 @@ namespace MoneyManager.Data.Mappers
 				ExpenseDate = reader.GetDateTime(reader.GetOrdinal("ExpenseDate")),
 				Expense = reader.GetString(reader.GetOrdinal("Expense")),
 				Amount = reader.GetDecimal(reader.GetOrdinal("Amount")),
+				Currency = reader.IsDBNull(currencyOrdinal) ? "USD" : reader.GetString(currencyOrdinal),
 				PaymentMethod = reader.IsDBNull(paymentMethodOrdinal) ? null : reader.GetInt32(paymentMethodOrdinal),
 				Category = reader.IsDBNull(categoryOrdinal) ? null : reader.GetInt32(categoryOrdinal),
 				DatePaid = reader.IsDBNull(reader.GetOrdinal("DatePaid")) ? null : reader.GetDateTime(reader.GetOrdinal("DatePaid")),

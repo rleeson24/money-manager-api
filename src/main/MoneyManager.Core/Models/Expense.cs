@@ -9,6 +9,7 @@ namespace MoneyManager.Core.Models
 		[JsonPropertyName("expense")]
 		public string ExpenseDescription { get; set; } = string.Empty;
 		public decimal Amount { get; set; }
+		public string Currency { get; set; } = "USD";
 		public int? PaymentMethod { get; set; }
 		public int? Category { get; set; }
 		public DateTime? DatePaid { get; set; }

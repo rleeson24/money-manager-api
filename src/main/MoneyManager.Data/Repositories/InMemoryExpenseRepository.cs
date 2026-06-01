@@ -44,6 +44,7 @@ namespace MoneyManager.Data.Repositories
 				ExpenseDate = model.ExpenseDate,
 				ExpenseDescription = model.Expense,
 				Amount = model.Amount,
+				Currency = string.IsNullOrWhiteSpace(model.Currency) ? "USD" : model.Currency,
 				PaymentMethod = model.PaymentMethod,
 				Category = model.Category,
 				DatePaid = model.DatePaid,
@@ -68,6 +69,7 @@ namespace MoneyManager.Data.Repositories
 				ExpenseDate = expense.ExpenseDate,
 				ExpenseDescription = expense.ExpenseDescription,
 				Amount = expense.Amount,
+				Currency = string.IsNullOrWhiteSpace(expense.Currency) ? "USD" : expense.Currency,
 				PaymentMethod = expense.PaymentMethod,
 				Category = expense.Category,
 				DatePaid = expense.DatePaid,
@@ -93,6 +95,7 @@ namespace MoneyManager.Data.Repositories
 				ExpenseDate = updates.TryGetValue("ExpenseDate", out var d) && d is DateTime dt ? dt : current.ExpenseDate,
 				ExpenseDescription = updates.TryGetValue("Expense", out var desc) && desc is string s ? s : current.ExpenseDescription,
 				Amount = updates.TryGetValue("Amount", out var a) && a is decimal amt ? amt : current.Amount,
+				Currency = updates.TryGetValue("Currency", out var cur) && cur is string curStr ? curStr : current.Currency,
 				PaymentMethod = updates.ContainsKey("PaymentMethod") ? (int?)updates["PaymentMethod"] : current.PaymentMethod,
 				Category = updates.ContainsKey("Category") ? (int?)updates["Category"] : current.Category,
 				DatePaid = updates.ContainsKey("DatePaid") ? (DateTime?)updates["DatePaid"] : current.DatePaid,
@@ -118,6 +121,7 @@ namespace MoneyManager.Data.Repositories
 				if (updates.TryGetValue("ExpenseDate", out var d) && d is DateTime dt) e.ExpenseDate = dt;
 				if (updates.TryGetValue("Expense", out var desc) && desc is string s) e.ExpenseDescription = s;
 				if (updates.TryGetValue("Amount", out var a) && a is decimal amt) e.Amount = amt;
+				if (updates.TryGetValue("Currency", out var cur) && cur is string curStr) e.Currency = curStr;
 				if (updates.ContainsKey("PaymentMethod")) e.PaymentMethod = (int?)updates["PaymentMethod"];
 				if (updates.ContainsKey("Category")) e.Category = (int?)updates["Category"];
 				if (updates.ContainsKey("DatePaid")) e.DatePaid = (DateTime?)updates["DatePaid"];

@@ -25,6 +25,7 @@ namespace MoneyManager.Data.Mappers
 				ExpenseDate = db.ExpenseDate,
 				ExpenseDescription = db.Expense,
 				Amount = db.Amount,
+				Currency = db.Currency,
 				PaymentMethod = db.PaymentMethod,
 				Category = db.Category,
 				DatePaid = db.DatePaid,
@@ -42,6 +43,7 @@ namespace MoneyManager.Data.Mappers
 				ExpenseDate = model.ExpenseDate,
 				Expense = model.Expense,
 				Amount = model.Amount,
+				Currency = string.IsNullOrWhiteSpace(model.Currency) ? "USD" : model.Currency,
 				PaymentMethod = model.PaymentMethod,
 				Category = model.Category,
 				DatePaid = model.DatePaid,
@@ -57,6 +59,7 @@ namespace MoneyManager.Data.Mappers
 			existing.ExpenseDate = model.ExpenseDate;
 			existing.Expense = model.Expense;
 			existing.Amount = model.Amount;
+			existing.Currency = string.IsNullOrWhiteSpace(model.Currency) ? "USD" : model.Currency;
 			existing.PaymentMethod = model.PaymentMethod;
 			existing.Category = model.Category;
 			existing.DatePaid = model.DatePaid;
@@ -68,6 +71,7 @@ namespace MoneyManager.Data.Mappers
 			existing.ExpenseDate = expense.ExpenseDate;
 			existing.Expense = expense.ExpenseDescription;
 			existing.Amount = expense.Amount;
+			existing.Currency = string.IsNullOrWhiteSpace(expense.Currency) ? "USD" : expense.Currency;
 			existing.PaymentMethod = expense.PaymentMethod;
 			existing.Category = expense.Category;
 			existing.DatePaid = expense.DatePaid;
