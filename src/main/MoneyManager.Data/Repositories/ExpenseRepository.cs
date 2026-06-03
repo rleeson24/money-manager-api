@@ -280,20 +280,30 @@ namespace MoneyManager.Data.Repositories
 			return rowsAffected > 0;
 		}
 
-		public async Task<IReadOnlyList<Expense>> ListForUserInDateRange(Guid userId, DateTime fromDate, DateTime toDate)
+		public async Task<IReadOnlyList<Expense>> ListForUserInDateRange(Guid userId, DateTime fromDate, DateTime toDate, int? paymentMethodId = null)
 		{
 			if (_dataOptions.UseMockData)
 			{
-				var list = MockData.Expenses.Where(e => e.ExpenseDate.Date >= fromDate.Date && e.ExpenseDate.Date <= toDate.Date).OrderByDescending(e => e.ExpenseDate).ToList();
+				var list = MockData.Expenses
+					.Where(e => e.ExpenseDate.Date >= fromDate.Date && e.ExpenseDate.Date <= toDate.Date)
+					.Where(e => !paymentMethodId.HasValue || e.PaymentMethod == paymentMethodId.Value)
+					.OrderByDescending(e => e.ExpenseDate)
+					.ToList();
 				return await Task.FromResult(list);
 			}
 			var result = new List<DbExpense>();
-			var sql = "SELECT * FROM Expenses WHERE UserId = @UserId AND ExpenseDate >= @FromDate AND ExpenseDate <= @ToDate ORDER BY ExpenseDate DESC";
-			await _db.ExecuteReader(sql, [
+			var sql = paymentMethodId.HasValue
+				? "SELECT * FROM Expenses WHERE UserId = @UserId AND ExpenseDate >= @FromDate AND ExpenseDate <= @ToDate AND PaymentMethod = @PaymentMethod ORDER BY ExpenseDate DESC"
+				: "SELECT * FROM Expenses WHERE UserId = @UserId AND ExpenseDate >= @FromDate AND ExpenseDate <= @ToDate ORDER BY ExpenseDate DESC";
+			var parameters = new List<SqlParameter>
+			{
 				new SqlParameter("@UserId", userId),
 				new SqlParameter("@FromDate", fromDate.Date),
 				new SqlParameter("@ToDate", toDate.Date)
-			], async sqlReader =>
+			};
+			if (paymentMethodId.HasValue)
+				parameters.Add(new SqlParameter("@PaymentMethod", paymentMethodId.Value));
+			await _db.ExecuteReader(sql, parameters, async sqlReader =>
 			{
 				while (await sqlReader.ReadAsync())
 					result.Add(await _readerMapper.FromDbReader(sqlReader));

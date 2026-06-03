@@ -6,6 +6,7 @@ namespace MoneyManager.Core.Import
 {
 	/// <summary>
 	/// Filters out parsed transactions that already exist as expenses (same date-only and amount rounded to 2 decimals).
+	/// Caller should scope existingExpenses to the import's payment method so cross-account matches are ignored.
 	/// </summary>
 	public static class ImportDuplicateFilter
 	{

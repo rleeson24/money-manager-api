@@ -143,10 +143,14 @@ namespace MoneyManager.Data.Repositories
 			return Task.FromResult(removed > 0);
 		}
 
-		public Task<IReadOnlyList<Expense>> ListForUserInDateRange(Guid userId, DateTime fromDate, DateTime toDate)
+		public Task<IReadOnlyList<Expense>> ListForUserInDateRange(Guid userId, DateTime fromDate, DateTime toDate, int? paymentMethodId = null)
 		{
 			var all = _store.GetExpensesFiltered(null, null, null);
-			var list = all.Where(e => e.ExpenseDate.Date >= fromDate.Date && e.ExpenseDate.Date <= toDate.Date).OrderByDescending(e => e.ExpenseDate).ToList();
+			var list = all
+				.Where(e => e.ExpenseDate.Date >= fromDate.Date && e.ExpenseDate.Date <= toDate.Date)
+				.Where(e => !paymentMethodId.HasValue || e.PaymentMethod == paymentMethodId.Value)
+				.OrderByDescending(e => e.ExpenseDate)
+				.ToList();
 			return Task.FromResult<IReadOnlyList<Expense>>(list);
 		}
 

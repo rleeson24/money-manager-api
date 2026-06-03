@@ -64,14 +64,14 @@ namespace MoneyManager.Core.UseCases.Import
 
 			var minDate = normalized.Min(t => t.Date.Date);
 			var maxDate = normalized.Max(t => t.Date.Date);
-			var existing = await _expenseRepository.ListForUserInDateRange(userId, minDate, maxDate);
+			var existing = await _expenseRepository.ListForUserInDateRange(userId, minDate, maxDate, paymentMethodId);
 			var toCreate = ImportDuplicateFilter.FilterDuplicates(existing, normalized);
 			toCreate = RemoveTransfersAndPayments(toCreate);
 			var skippedDuplicates = normalized.Count - toCreate.Count;
 
 			_logger.LogInformation(
-				"Import deduped for user {UserId}: {ToCreate} to create, {SkippedDuplicates} duplicates skipped ({DateRangeStart} to {DateRangeEnd})",
-				userId, toCreate.Count, skippedDuplicates, minDate, maxDate);
+				"Import deduped for user {UserId}: {ToCreate} to create, {SkippedDuplicates} duplicates skipped ({DateRangeStart} to {DateRangeEnd}, paymentMethod={PaymentMethodId})",
+				userId, toCreate.Count, skippedDuplicates, minDate, maxDate, paymentMethodId);
 
 			var created = 0;
 			foreach (var t in toCreate)
