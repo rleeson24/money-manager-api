@@ -9,7 +9,7 @@ namespace MoneyManager.Core.Repositories
 	{
 		Task<Expense?> Get(int id, Guid userId);
 		Task<IReadOnlyList<Expense>> ListForUser(Guid userId, string? month = null);
-		Task<IReadOnlyList<Expense>> ListForUserWithFilters(Guid userId, int? paymentMethod = null, bool? datePaidNull = null);
+		Task<IReadOnlyList<Expense>> ListForUserWithFilters(Guid userId, int? paymentMethod = null, bool? datePaidNull = null, string? currency = null);
 		Task<Expense?> Create(Guid userId, CreateExpenseModel model);
 		Task<UpdateExpenseResult> Update(int id, Guid userId, Expense expense);
 		Task<UpdateExpenseResult> Patch(int id, Guid userId, Dictionary<string, object?> updates, DateTime? expectedModifiedDateTime);

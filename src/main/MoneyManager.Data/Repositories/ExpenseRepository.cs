@@ -57,7 +57,7 @@ namespace MoneyManager.Data.Repositories
 
 		
 
-		public async Task<IReadOnlyList<Expense>> ListForUserWithFilters(Guid userId, int? paymentMethod = null, bool? datePaidNull = null)
+		public async Task<IReadOnlyList<Expense>> ListForUserWithFilters(Guid userId, int? paymentMethod = null, bool? datePaidNull = null, string? currency = null)
 		{
 			if (_dataOptions.UseMockData)
 			{
@@ -66,6 +66,8 @@ namespace MoneyManager.Data.Repositories
 					list = list.Where(e => e.PaymentMethod == paymentMethod.Value);
 				if (datePaidNull == true)
 					list = list.Where(e => e.DatePaid == null);
+				if (!string.IsNullOrWhiteSpace(currency))
+					list = list.Where(e => string.Equals(e.Currency ?? "USD", currency, StringComparison.OrdinalIgnoreCase));
 				return await Task.FromResult(list.OrderBy(e => e.ExpenseDate).ToList());
 			}
 			var result = new List<DbExpense>();
@@ -84,6 +86,12 @@ namespace MoneyManager.Data.Repositories
 			if (datePaidNull == true)
 			{
 				sql += " AND DatePaid IS NULL";
+			}
+
+			if (!string.IsNullOrWhiteSpace(currency))
+			{
+				sql += " AND ISNULL(Currency, 'USD') = @Currency";
+				parameters.Add(new SqlParameter("@Currency", currency));
 			}
 
 			sql += " ORDER BY ExpenseDate ASC";

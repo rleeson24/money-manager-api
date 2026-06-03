@@ -159,7 +159,7 @@ namespace MoneyManager.Data.Repositories
 				return _expenses.Find(e => e.Expense_I == id);
 		}
 
-		public List<Expense> GetExpensesFiltered(string? month, int? paymentMethod, bool? datePaidNull)
+		public List<Expense> GetExpensesFiltered(string? month, int? paymentMethod, bool? datePaidNull, string? currency = null)
 		{
 			lock (_lock)
 			{
@@ -170,6 +170,8 @@ namespace MoneyManager.Data.Repositories
 					list = list.Where(e => e.PaymentMethod == paymentMethod.Value);
 				if (datePaidNull == true)
 					list = list.Where(e => e.DatePaid == null);
+				if (!string.IsNullOrWhiteSpace(currency))
+					list = list.Where(e => string.Equals(e.Currency ?? "USD", currency, StringComparison.OrdinalIgnoreCase));
 				return list.OrderBy(e => e.ExpenseDate).ToList();
 			}
 		}

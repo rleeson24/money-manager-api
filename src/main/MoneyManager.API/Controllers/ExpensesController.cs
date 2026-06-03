@@ -41,15 +41,16 @@ namespace MoneyManager.API.Controllers
 			[FromServices] IGetExpensesUseCase getExpensesUseCase,
 			[FromQuery] string? month = null,
 			[FromQuery] int? paymentMethod = null,
-			[FromQuery] bool? datePaidNull = null)
+			[FromQuery] bool? datePaidNull = null,
+			[FromQuery] string? currency = null)
 		{
 			if (UnauthorizedIfNoUser(out var userId) is { } unauthorized)
 				return unauthorized;
 
 			IReadOnlyList<Expense>? expenses;
-			if (paymentMethod.HasValue || datePaidNull.HasValue)
+			if (paymentMethod.HasValue || datePaidNull.HasValue || !string.IsNullOrWhiteSpace(currency))
 			{
-				expenses = await getExpensesUseCase.ExecuteWithFilters(userId, paymentMethod, datePaidNull);
+				expenses = await getExpensesUseCase.ExecuteWithFilters(userId, paymentMethod, datePaidNull, currency);
 			}
 			else
 			{

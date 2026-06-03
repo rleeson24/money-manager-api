@@ -29,9 +29,9 @@ namespace MoneyManager.Data.Repositories
 			return Task.FromResult<IReadOnlyList<Expense>>(list);
 		}
 
-		public Task<IReadOnlyList<Expense>> ListForUserWithFilters(Guid userId, int? paymentMethod = null, bool? datePaidNull = null)
+		public Task<IReadOnlyList<Expense>> ListForUserWithFilters(Guid userId, int? paymentMethod = null, bool? datePaidNull = null, string? currency = null)
 		{
-			var list = _store.GetExpensesFiltered(null, paymentMethod, datePaidNull);
+			var list = _store.GetExpensesFiltered(null, paymentMethod, datePaidNull, currency);
 			return Task.FromResult<IReadOnlyList<Expense>>(list);
 		}
 

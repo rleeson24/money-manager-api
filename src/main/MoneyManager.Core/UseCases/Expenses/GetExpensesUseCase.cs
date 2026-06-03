@@ -8,7 +8,7 @@ namespace MoneyManager.Core.UseCases.Expenses
 	public interface IGetExpensesUseCase
 	{
 		Task<IReadOnlyList<Expense>?> Execute(Guid userId, string? month = null);
-		Task<IReadOnlyList<Expense>?> ExecuteWithFilters(Guid userId, int? paymentMethod = null, bool? datePaidNull = null);
+		Task<IReadOnlyList<Expense>?> ExecuteWithFilters(Guid userId, int? paymentMethod = null, bool? datePaidNull = null, string? currency = null);
 	}
 
 	public class GetExpensesUseCase : IGetExpensesUseCase
@@ -39,14 +39,14 @@ namespace MoneyManager.Core.UseCases.Expenses
 			}
 		}
 
-		public async Task<IReadOnlyList<Expense>?> ExecuteWithFilters(Guid userId, int? paymentMethod = null, bool? datePaidNull = null)
+		public async Task<IReadOnlyList<Expense>?> ExecuteWithFilters(Guid userId, int? paymentMethod = null, bool? datePaidNull = null, string? currency = null)
 		{
 			try
 			{
-				var expenses = await _repository.ListForUserWithFilters(userId, paymentMethod, datePaidNull);
+				var expenses = await _repository.ListForUserWithFilters(userId, paymentMethod, datePaidNull, currency);
 				_logger.LogDebug(
-					"Fetched {Count} filtered expenses for user {UserId} (paymentMethod={PaymentMethod}, datePaidNull={DatePaidNull})",
-					expenses.Count, userId, paymentMethod, datePaidNull);
+					"Fetched {Count} filtered expenses for user {UserId} (paymentMethod={PaymentMethod}, datePaidNull={DatePaidNull}, currency={Currency})",
+					expenses.Count, userId, paymentMethod, datePaidNull, currency);
 				return expenses;
 			}
 			catch (Exception ex)
