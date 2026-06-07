@@ -4,7 +4,6 @@ using MoneyManager.Core;
 using MoneyManager.Core.Models;
 using MoneyManager.Core.Models.Input;
 using MoneyManager.Core.Repositories;
-using MoneyManager.Core.UseCases.Expenses;
 using MoneyManager.Data.Mappers;
 using MoneyManager.Data.Models;
 using MoneyManager.Data.Utilities;
@@ -319,7 +318,7 @@ namespace MoneyManager.Data.Repositories
 				var results = new List<LastImportDatesForPaymentMethod>();
 				foreach (var pmId in paymentMethodIds)
 				{
-					var forPm = list.Where(e => e.PaymentMethod == pmId).ToList();
+					var forPm = list.Where(e => e.PaymentMethod == pmId && e.CreatedBy == "Import").ToList();
 					results.Add(new LastImportDatesForPaymentMethod
 					{
 						PaymentMethodId = pmId,
@@ -335,8 +334,12 @@ namespace MoneyManager.Data.Repositories
 			foreach (var id in paymentMethodIds)
 				dict[id] = (null, null);
 			var idParams = string.Join(",", paymentMethodIds.Select((_, i) => "@pm" + i));
-			var sql = $"SELECT PaymentMethod, MAX(ExpenseDate) AS LatestExpenseDate, MAX(DatePaid) AS LatestDatePaid FROM Expenses WHERE UserId = @UserId AND PaymentMethod IN ({idParams}) GROUP BY PaymentMethod";
-			var parameters = new List<SqlParameter> { new SqlParameter("@UserId", userId) };
+			var sql = $"SELECT PaymentMethod, MAX(ExpenseDate) AS LatestExpenseDate, MAX(DatePaid) AS LatestDatePaid FROM Expenses WHERE UserId = @UserId AND CreatedBy = @CreatedBy AND PaymentMethod IN ({idParams}) GROUP BY PaymentMethod";
+			var parameters = new List<SqlParameter>
+			{
+				new SqlParameter("@UserId", userId),
+				new SqlParameter("@CreatedBy", "Import")
+			};
 			for (var i = 0; i < paymentMethodIds.Count; i++)
 				parameters.Add(new SqlParameter("@pm" + i, paymentMethodIds[i]));
 			await _db.ExecuteReader(sql, parameters, async sqlReader =>

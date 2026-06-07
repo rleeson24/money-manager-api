@@ -25,14 +25,13 @@ public sealed class RequestLoggingMiddleware
 			return;
 		}
 
-		var stopwatch = Stopwatch.StartNew();
+		var start = Stopwatch.GetTimestamp();
 		try
 		{
 			await _next(context);
 		}
 		finally
 		{
-			stopwatch.Stop();
 			var userId = resolveUserId.Resolve(context.User);
 			var logLevel = context.Response.StatusCode >= 500 ? LogLevel.Error
 				: context.Response.StatusCode >= 400 ? LogLevel.Warning
@@ -44,7 +43,7 @@ public sealed class RequestLoggingMiddleware
 				context.Request.Method,
 				context.Request.Path.Value,
 				context.Response.StatusCode,
-				stopwatch.ElapsedMilliseconds,
+				Stopwatch.GetElapsedTime(start).TotalMilliseconds,
 				userId?.ToString() ?? "anonymous");
 		}
 	}

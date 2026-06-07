@@ -1,8 +1,10 @@
+using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MoneyManager.API.Configuration;
+using MoneyManager.Core.Application.Categories.Commands;
+using MoneyManager.Core.Application.Categories.Queries;
 using MoneyManager.Core.Models.Input;
-using MoneyManager.Core.UseCases.Categories;
 
 namespace MoneyManager.API.Controllers
 {
@@ -11,34 +13,35 @@ namespace MoneyManager.API.Controllers
 	[Route("api/categories")]
 	public class CategoriesController : ControllerBase
 	{
-		[HttpGet]
-		public async Task<IActionResult> GetCategories(
-			[FromServices] IGetCategoriesUseCase getCategoriesUseCase,
-			[FromQuery] bool activeOnly = false)
+		private readonly IMediator _mediator;
+
+		public CategoriesController(IMediator mediator)
 		{
-			var categories = await getCategoriesUseCase.Execute(activeOnly);
+			_mediator = mediator;
+		}
+
+		[HttpGet]
+		public async Task<IActionResult> GetCategories([FromQuery] bool activeOnly = false, CancellationToken cancellationToken = default)
+		{
+			var categories = await _mediator.Send(new GetCategoriesQuery(activeOnly), cancellationToken);
 			if (categories != null)
 				return Ok(categories);
 			return Problem();
 		}
 
 		[HttpGet("{id}")]
-		public async Task<IActionResult> GetCategory(
-			[FromServices] IGetCategoryUseCase getCategoryUseCase,
-			int id)
+		public async Task<IActionResult> GetCategory(int id, CancellationToken cancellationToken = default)
 		{
-			var category = await getCategoryUseCase.Execute(id);
+			var category = await _mediator.Send(new GetCategoryQuery(id), cancellationToken);
 			if (category != null)
 				return Ok(category);
 			return NotFound();
 		}
 
 		[HttpPost]
-		public async Task<IActionResult> CreateCategory(
-			[FromServices] ICreateCategoryUseCase createCategoryUseCase,
-			[FromBody] CreateCategoryModel model)
+		public async Task<IActionResult> CreateCategory([FromBody] CreateCategoryModel model, CancellationToken cancellationToken = default)
 		{
-			var result = await createCategoryUseCase.Execute(model);
+			var result = await _mediator.Send(new CreateCategoryCommand(model), cancellationToken);
 			if (result.ValidationError != null)
 				return BadRequest(new { error = result.ValidationError });
 			if (result.Category != null)
@@ -47,12 +50,9 @@ namespace MoneyManager.API.Controllers
 		}
 
 		[HttpPut("{id}")]
-		public async Task<IActionResult> UpdateCategory(
-			[FromServices] IUpdateCategoryUseCase updateCategoryUseCase,
-			int id,
-			[FromBody] UpdateCategoryModel model)
+		public async Task<IActionResult> UpdateCategory(int id, [FromBody] UpdateCategoryModel model, CancellationToken cancellationToken = default)
 		{
-			var result = await updateCategoryUseCase.Execute(id, model);
+			var result = await _mediator.Send(new UpdateCategoryCommand(id, model), cancellationToken);
 			if (result.ValidationError != null)
 				return BadRequest(new { error = result.ValidationError });
 			if (result.Category != null)
@@ -63,11 +63,9 @@ namespace MoneyManager.API.Controllers
 		}
 
 		[HttpDelete("{id}")]
-		public async Task<IActionResult> DeleteCategory(
-			[FromServices] IDeleteCategoryUseCase deleteCategoryUseCase,
-			int id)
+		public async Task<IActionResult> DeleteCategory(int id, CancellationToken cancellationToken = default)
 		{
-			var result = await deleteCategoryUseCase.Execute(id);
+			var result = await _mediator.Send(new DeleteCategoryCommand(id), cancellationToken);
 			if (result.ValidationError != null)
 				return BadRequest(new { error = result.ValidationError });
 			if (result.Success)
