@@ -5,9 +5,9 @@ using Azure.Security.KeyVault.Secrets;
 using MoneyManager.API.Configuration;
 using MoneyManager.API.Middleware;
 using MoneyManager.API.Utilities;
+using FluentValidation;
 using MoneyManager.Core;
-using MoneyManager.Core.UseCases.Categories;
-using MoneyManager.Core.UseCases.PaymentMethods;
+using MoneyManager.Core.Application.PaymentMethods.Queries;
 using MoneyManager.Data;
 using MoneyManager.Import;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -133,6 +133,17 @@ app.UseExceptionHandler(exceptionHandlerApp =>
 		var exceptionHandlerFeature = context.Features.Get<IExceptionHandlerFeature>();
 		var exception = exceptionHandlerFeature?.Error;
 
+		if (exception is ValidationException validationException)
+		{
+			context.Response.StatusCode = StatusCodes.Status400BadRequest;
+			context.Response.ContentType = "application/json";
+			var errors = validationException.Errors
+				.GroupBy(e => e.PropertyName)
+				.ToDictionary(g => g.Key, g => g.Select(e => e.ErrorMessage).ToArray());
+			await context.Response.WriteAsJsonAsync(new { error = "Validation failed.", errors });
+			return;
+		}
+
 		if (exception != null)
 		{
 			var logger = context.RequestServices.GetRequiredService<ILogger<Program>>();
@@ -185,9 +196,9 @@ app.UseAuthorization();
 
 app.MapDefaultEndpoints();
 
-app.MapGet("/api/payment-methods", async (IGetPaymentMethodsUseCase getPaymentMethodsUseCase) =>
+app.MapGet("/api/payment-methods", async (MediatR.IMediator mediator) =>
 {
-	var paymentMethods = await getPaymentMethodsUseCase.Execute();
+	var paymentMethods = await mediator.Send(new GetPaymentMethodsQuery());
 	return paymentMethods != null ? Results.Ok(paymentMethods) : Results.Problem();
 }).RequireAuthorization().WithTags("Payment Methods");
 

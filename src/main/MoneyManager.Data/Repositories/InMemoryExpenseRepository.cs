@@ -5,7 +5,6 @@ using MoneyManager.Core;
 using MoneyManager.Core.Models;
 using MoneyManager.Core.Models.Input;
 using MoneyManager.Core.Repositories;
-using MoneyManager.Core.UseCases.Expenses;
 
 namespace MoneyManager.Data.Repositories
 {
@@ -160,7 +159,7 @@ namespace MoneyManager.Data.Repositories
 			var results = new List<LastImportDatesForPaymentMethod>();
 			foreach (var pmId in paymentMethodIds)
 			{
-				var forPm = all.Where(e => e.PaymentMethod == pmId).ToList();
+				var forPm = all.Where(e => e.PaymentMethod == pmId && e.CreatedBy == "Import").ToList();
 				results.Add(new LastImportDatesForPaymentMethod
 				{
 					PaymentMethodId = pmId,

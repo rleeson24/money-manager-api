@@ -1,7 +1,6 @@
 using System.Collections.Generic;
 using MoneyManager.Core.Models;
 using MoneyManager.Core.Models.Input;
-using MoneyManager.Core.UseCases.Expenses;
 
 namespace MoneyManager.Core.Repositories
 {

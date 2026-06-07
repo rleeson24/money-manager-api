@@ -1,13 +1,16 @@
 using System.Collections.Generic;
 using System.Globalization;
+using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MoneyManager.API.Configuration;
 using MoneyManager.API.Utilities;
+using MoneyManager.Core.Application.ExpenseSplits.Commands;
+using MoneyManager.Core.Application.ExpenseSplits.Queries;
+using MoneyManager.Core.Application.Expenses.Commands;
+using MoneyManager.Core.Application.Expenses.Queries;
 using MoneyManager.Core.Models;
 using MoneyManager.Core.Models.Input;
-using MoneyManager.Core.UseCases.Expenses;
-using MoneyManager.Core.UseCases.ExpenseSplits;
 using System.Text.Json;
 
 namespace MoneyManager.API.Controllers
@@ -18,10 +21,12 @@ namespace MoneyManager.API.Controllers
 	public class ExpensesController : ControllerBase
 	{
 		private readonly IResolveUserId _resolveUserId;
+		private readonly IMediator _mediator;
 
-		public ExpensesController(IResolveUserId resolveUserId)
+		public ExpensesController(IResolveUserId resolveUserId, IMediator mediator)
 		{
 			_resolveUserId = resolveUserId;
+			_mediator = mediator;
 		}
 
 		private IActionResult? UnauthorizedIfNoUser(out Guid userId)
@@ -38,74 +43,55 @@ namespace MoneyManager.API.Controllers
 
 		[HttpGet]
 		public async Task<IActionResult> GetExpenses(
-			[FromServices] IGetExpensesUseCase getExpensesUseCase,
 			[FromQuery] string? month = null,
 			[FromQuery] int? paymentMethod = null,
 			[FromQuery] bool? datePaidNull = null,
-			[FromQuery] string? currency = null)
+			[FromQuery] string? currency = null,
+			CancellationToken cancellationToken = default)
 		{
 			if (UnauthorizedIfNoUser(out var userId) is { } unauthorized)
 				return unauthorized;
 
-			IReadOnlyList<Expense>? expenses;
-			if (paymentMethod.HasValue || datePaidNull.HasValue || !string.IsNullOrWhiteSpace(currency))
-			{
-				expenses = await getExpensesUseCase.ExecuteWithFilters(userId, paymentMethod, datePaidNull, currency);
-			}
-			else
-			{
-				expenses = await getExpensesUseCase.Execute(userId, month);
-			}
+			var expenses = await _mediator.Send(
+				new GetExpensesQuery(userId, month, paymentMethod, datePaidNull, currency),
+				cancellationToken);
 
 			if (expenses != null)
-			{
 				return Ok(expenses);
-			}
 			return Problem();
 		}
 
 		[HttpGet("{id}")]
-		public async Task<IActionResult> GetExpense(
-			[FromServices] IGetExpenseUseCase getExpenseUseCase,
-			int id)
+		public async Task<IActionResult> GetExpense(int id, CancellationToken cancellationToken = default)
 		{
 			if (UnauthorizedIfNoUser(out var userId) is { } unauthorized)
 				return unauthorized;
 
-			var expense = await getExpenseUseCase.Execute(id, userId);
+			var expense = await _mediator.Send(new GetExpenseQuery(id, userId), cancellationToken);
 			if (expense != null)
-			{
 				return Ok(expense);
-			}
 			return NotFound();
 		}
 
 		[HttpPost]
-		public async Task<IActionResult> CreateExpense(
-			[FromServices] ICreateExpenseUseCase createExpenseUseCase,
-			[FromBody] CreateExpenseModel model)
+		public async Task<IActionResult> CreateExpense([FromBody] CreateExpenseModel model, CancellationToken cancellationToken = default)
 		{
 			if (UnauthorizedIfNoUser(out var userId) is { } unauthorized)
 				return unauthorized;
 
-			var expense = await createExpenseUseCase.Execute(userId, model);
+			var expense = await _mediator.Send(new CreateExpenseCommand(userId, model), cancellationToken);
 			if (expense != null)
-			{
 				return CreatedAtAction(nameof(GetExpense), new { id = expense.Expense_I }, expense);
-			}
 			return Problem();
 		}
 
 		[HttpPut("{id}")]
-		public async Task<IActionResult> UpdateExpense(
-			[FromServices] IUpdateExpenseUseCase updateExpenseUseCase,
-			int id,
-			[FromBody] Expense model)
+		public async Task<IActionResult> UpdateExpense(int id, [FromBody] Expense model, CancellationToken cancellationToken = default)
 		{
 			if (UnauthorizedIfNoUser(out var userId) is { } unauthorized)
 				return unauthorized;
 
-			var result = await updateExpenseUseCase.Execute(id, userId, model);
+			var result = await _mediator.Send(new UpdateExpenseCommand(id, userId, model), cancellationToken);
 			if (result.IsSuccess)
 				return Ok(result.Updated);
 			if (result.IsConflict)
@@ -114,10 +100,7 @@ namespace MoneyManager.API.Controllers
 		}
 
 		[HttpPatch("{id}")]
-		public async Task<IActionResult> PatchExpense(
-			[FromServices] IPatchExpenseUseCase patchExpenseUseCase,
-			int id,
-			[FromBody] JsonElement jsonElement)
+		public async Task<IActionResult> PatchExpense(int id, [FromBody] JsonElement jsonElement, CancellationToken cancellationToken = default)
 		{
 			if (UnauthorizedIfNoUser(out var userId) is { } unauthorized)
 				return unauthorized;
@@ -129,13 +112,11 @@ namespace MoneyManager.API.Controllers
 				var key = prop.Name;
 				var value = prop.Value;
 
-				// Used for optimistic concurrency; not a column update
 				if (key == "ModifiedDateTime")
 				{
 					expectedModifiedDateTime = ParseDateTimeFromElement(value);
 					continue;
 				}
-				// Never persist CreatedDateTime from PATCH body
 				if (key == "CreatedDateTime")
 					continue;
 
@@ -149,9 +130,7 @@ namespace MoneyManager.API.Controllers
 					if (key == "ExpenseDate" || key == "DatePaid")
 					{
 						if (DateTime.TryParse(strValue, out var dateValue))
-						{
 							updates[key] = dateValue;
-						}
 					}
 					else
 					{
@@ -163,13 +142,9 @@ namespace MoneyManager.API.Controllers
 					if (key == "Amount" || key == "PaymentMethod" || key == "Category")
 					{
 						if (value.TryGetInt32(out var intValue))
-						{
 							updates[key] = intValue;
-						}
 						else if (value.TryGetDecimal(out var decimalValue))
-						{
 							updates[key] = decimalValue;
-						}
 					}
 				}
 				else if (value.ValueKind == JsonValueKind.True || value.ValueKind == JsonValueKind.False)
@@ -184,7 +159,9 @@ namespace MoneyManager.API.Controllers
 				}
 			}
 
-			var result = await patchExpenseUseCase.Execute(id, userId, updates, expectedModifiedDateTime);
+			var result = await _mediator.Send(
+				new PatchExpenseCommand(id, userId, updates, expectedModifiedDateTime),
+				cancellationToken);
 			if (result.IsSuccess)
 				return Ok(result.Updated);
 			if (result.IsConflict)
@@ -205,25 +182,19 @@ namespace MoneyManager.API.Controllers
 		}
 
 		[HttpDelete("{id}")]
-		public async Task<IActionResult> DeleteExpense(
-			[FromServices] IDeleteExpenseUseCase deleteExpenseUseCase,
-			int id)
+		public async Task<IActionResult> DeleteExpense(int id, CancellationToken cancellationToken = default)
 		{
 			if (UnauthorizedIfNoUser(out var userId) is { } unauthorized)
 				return unauthorized;
 
-			var success = await deleteExpenseUseCase.Execute(id, userId);
+			var success = await _mediator.Send(new DeleteExpenseCommand(id, userId), cancellationToken);
 			if (success)
-			{
 				return Ok();
-			}
 			return NotFound();
 		}
 
 		[HttpPatch("bulk")]
-		public async Task<IActionResult> BulkUpdateExpenses(
-			[FromServices] IBulkUpdateExpensesUseCase bulkUpdateExpensesUseCase,
-			[FromBody] BulkUpdateRequest request)
+		public async Task<IActionResult> BulkUpdateExpenses([FromBody] BulkUpdateRequest request, CancellationToken cancellationToken = default)
 		{
 			if (UnauthorizedIfNoUser(out var userId) is { } unauthorized)
 				return unauthorized;
@@ -240,98 +211,79 @@ namespace MoneyManager.API.Controllers
 			else if (request.DatePaid != null)
 				updates["DatePaid"] = request.DatePaid;
 
-			var success = await bulkUpdateExpensesUseCase.Execute(request.Ids, userId, updates);
+			var success = await _mediator.Send(
+				new BulkUpdateExpensesCommand(request.Ids, userId, updates),
+				cancellationToken);
 			if (success)
-			{
 				return Ok();
-			}
 			return Problem();
 		}
 
 		[HttpGet("split")]
-		public async Task<IActionResult> GetExpenseSplits(
-			[FromServices] IGetExpenseSplitsUseCase getExpenseSplitsUseCase,
-			[FromQuery] int expenseId)
+		public async Task<IActionResult> GetExpenseSplits([FromQuery] int expenseId, CancellationToken cancellationToken = default)
 		{
 			if (UnauthorizedIfNoUser(out var userId) is { } unauthorized)
 				return unauthorized;
-			var splits = await getExpenseSplitsUseCase.Execute(expenseId, userId);
+			var splits = await _mediator.Send(new GetExpenseSplitsQuery(expenseId, userId), cancellationToken);
 			return Ok(splits);
 		}
 
 		[HttpPost("split")]
-		public async Task<IActionResult> CreateExpenseSplit(
-			[FromServices] ICreateExpenseSplitUseCase createExpenseSplitUseCase,
-			[FromBody] CreateOrUpdateExpenseSplitModel model)
+		public async Task<IActionResult> CreateExpenseSplit([FromBody] CreateOrUpdateExpenseSplitModel model, CancellationToken cancellationToken = default)
 		{
 			if (UnauthorizedIfNoUser(out var userId) is { } unauthorized)
 				return unauthorized;
-			var split = await createExpenseSplitUseCase.Execute(userId, model);
+			var split = await _mediator.Send(new CreateExpenseSplitCommand(userId, model), cancellationToken);
 			if (split != null)
-			{
 				return CreatedAtAction(nameof(GetExpenseSplits), new { expenseId = model.Expense_I }, split);
-			}
 			return BadRequest();
 		}
 
 		[HttpPut("split/{id}")]
-		public async Task<IActionResult> UpdateExpenseSplit(
-			[FromServices] IUpdateExpenseSplitUseCase updateExpenseSplitUseCase,
-			int id,
-			[FromBody] CreateOrUpdateExpenseSplitModel model)
+		public async Task<IActionResult> UpdateExpenseSplit(int id, [FromBody] CreateOrUpdateExpenseSplitModel model, CancellationToken cancellationToken = default)
 		{
 			if (UnauthorizedIfNoUser(out var userId) is { } unauthorized)
 				return unauthorized;
-			var split = await updateExpenseSplitUseCase.Execute(id, userId, model);
+			var split = await _mediator.Send(new UpdateExpenseSplitCommand(id, userId, model), cancellationToken);
 			if (split != null)
-			{
 				return Ok(split);
-			}
 			return NotFound();
 		}
 
 		[HttpDelete("split/{id}")]
-		public async Task<IActionResult> DeleteExpenseSplit(
-			[FromServices] IDeleteExpenseSplitUseCase deleteExpenseSplitUseCase,
-			int id)
+		public async Task<IActionResult> DeleteExpenseSplit(int id, CancellationToken cancellationToken = default)
 		{
 			if (UnauthorizedIfNoUser(out var userId) is { } unauthorized)
 				return unauthorized;
-			var success = await deleteExpenseSplitUseCase.Execute(id, userId);
+			var success = await _mediator.Send(new DeleteExpenseSplitCommand(id, userId), cancellationToken);
 			if (success)
-			{
 				return NoContent();
-			}
 			return NotFound();
 		}
 
 		[HttpPut("split/replace")]
 		public async Task<IActionResult> ReplaceExpenseSplits(
-			[FromServices] IReplaceExpenseSplitsUseCase replaceExpenseSplitsUseCase,
 			[FromQuery] int expenseId,
-			[FromBody] ReplaceExpenseSplitsRequest request)
+			[FromBody] ReplaceExpenseSplitsRequest request,
+			CancellationToken cancellationToken = default)
 		{
 			if (UnauthorizedIfNoUser(out var userId) is { } unauthorized)
 				return unauthorized;
-			var result = await replaceExpenseSplitsUseCase.Execute(expenseId, userId, request);
+			var result = await _mediator.Send(new ReplaceExpenseSplitsCommand(expenseId, userId, request), cancellationToken);
 			if (result.IsSuccess)
 				return Ok(result.Splits);
 			return BadRequest(new { error = result.ValidationError });
 		}
 
 		[HttpDelete("bulk")]
-		public async Task<IActionResult> BulkDeleteExpenses(
-			[FromServices] IBulkDeleteExpensesUseCase bulkDeleteExpensesUseCase,
-			[FromBody] BulkDeleteRequest request)
+		public async Task<IActionResult> BulkDeleteExpenses([FromBody] BulkDeleteRequest request, CancellationToken cancellationToken = default)
 		{
 			if (UnauthorizedIfNoUser(out var userId) is { } unauthorized)
 				return unauthorized;
 
-			var success = await bulkDeleteExpensesUseCase.Execute(request.Ids, userId);
+			var success = await _mediator.Send(new BulkDeleteExpensesCommand(request.Ids, userId), cancellationToken);
 			if (success)
-			{
 				return Ok();
-			}
 			return Problem();
 		}
 	}
