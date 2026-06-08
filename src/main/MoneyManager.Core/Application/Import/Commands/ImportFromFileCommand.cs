@@ -1,6 +1,7 @@
 using System.Linq;
 using FluentValidation;
 using MediatR;
+using MoneyManager.Core.Constants;
 using MoneyManager.Core.Import;
 using MoneyManager.Core.Models;
 using MoneyManager.Core.Models.Input;
@@ -66,7 +67,7 @@ namespace MoneyManager.Core.Application.Import.Commands
 			var maxDate = normalized.Max(t => t.Date.Date);
 			var existing = await _expenseRepository.ListForUserInDateRange(request.UserId, minDate, maxDate, request.PaymentMethodId);
 			var toCreate = ImportDuplicateFilter.FilterDuplicates(existing, normalized);
-			toCreate = RemoveTransfersAndPayments(toCreate);
+			toCreate = ImportFilterRules.RemoveTransfersAndPayments(toCreate);
 			var skippedDuplicates = normalized.Count - toCreate.Count;
 
 			_logger.LogInformation(
@@ -87,7 +88,7 @@ namespace MoneyManager.Core.Application.Import.Commands
 						Category = null,
 						DatePaid = null,
 						IsSplit = false,
-						CreatedBy = "Import"
+						CreatedBy = ExpenseConstants.ImportCreatedBy
 					};
 					var expense = await _expenseRepository.Create(request.UserId, model);
 					if (expense != null)
@@ -112,15 +113,6 @@ namespace MoneyManager.Core.Application.Import.Commands
 			};
 		}
 
-		private static IReadOnlyList<BankTransaction> RemoveTransfersAndPayments(IReadOnlyList<BankTransaction> toCreate)
-		{
-			return toCreate.Where(t =>
-				!t.Description.Contains("INTERNET PAYMENT - THANK YOU", StringComparison.OrdinalIgnoreCase) &&
-				!t.Description.Contains("EDI PYMNTS", StringComparison.OrdinalIgnoreCase) &&
-				!t.Description.Contains("Discover (CONA)  NET/MOBILE ROBERT LEESON", StringComparison.OrdinalIgnoreCase)
-			).ToList();
-		}
-
 		private static BankTransaction ApplySignRules(BankTransaction t, BankAccountType accountType, ImportSource importSource)
 		{
 			if (importSource == ImportSource.DiscoverSavings || importSource == ImportSource.DiscoverChecking || importSource == ImportSource.AbfcuSavings || importSource == ImportSource.AbfcuChecking)
@@ -136,8 +128,8 @@ namespace MoneyManager.Core.Application.Import.Commands
 			RuleFor(x => x.UserId).NotEmpty();
 			RuleFor(x => x.PaymentMethodId).GreaterThan(0);
 			RuleFor(x => x.Format).NotEmpty()
-				.Must(f => string.Equals(f.Trim(), "CSV", StringComparison.OrdinalIgnoreCase))
-				.WithMessage("Format must be CSV.");
+				.Must(ImportFormat.IsCsv)
+				.WithMessage($"Format must be {ImportFormat.Csv}.");
 			RuleFor(x => x.FileContent).NotNull();
 		}
 	}

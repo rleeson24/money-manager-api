@@ -20,18 +20,10 @@ namespace MoneyManager.Core.Application.Categories.Commands
 
 		public async Task<CategoryDeleteResult> Handle(DeleteCategoryCommand request, CancellationToken cancellationToken)
 		{
-			try
-			{
-				var result = await _repository.Delete(request.Id);
-				if (result.Success)
-					_logger.LogInformation("Deleted category {CategoryId}", request.Id);
-				return result;
-			}
-			catch (Exception ex)
-			{
-				_logger.LogError(ex, "Failed to delete category {CategoryId}", request.Id);
-				return CategoryDeleteResult.Error("Failed to delete category.");
-			}
+			var result = await _repository.Delete(request.Id);
+			if (result.Success)
+				_logger.LogInformation("Deleted category {CategoryId}", request.Id);
+			return result;
 		}
 	}
 

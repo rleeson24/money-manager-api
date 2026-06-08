@@ -25,33 +25,25 @@ namespace MoneyManager.Core.Application.Expenses.Queries
 
 		public async Task<IReadOnlyList<Expense>?> Handle(GetExpensesQuery request, CancellationToken cancellationToken)
 		{
-			try
+			var useFilters = request.PaymentMethod.HasValue
+				|| request.DatePaidNull.HasValue
+				|| !string.IsNullOrWhiteSpace(request.Currency);
+
+			if (useFilters)
 			{
-				var useFilters = request.PaymentMethod.HasValue
-					|| request.DatePaidNull.HasValue
-					|| !string.IsNullOrWhiteSpace(request.Currency);
-
-				if (useFilters)
-				{
-					var expenses = await _repository.ListForUserWithFilters(
-						request.UserId, request.PaymentMethod, request.DatePaidNull, request.Currency);
-					_logger.LogDebug(
-						"Fetched {Count} filtered expenses for user {UserId}",
-						expenses.Count, request.UserId);
-					return expenses;
-				}
-
-				var list = await _repository.ListForUser(request.UserId, request.Month);
+				var expenses = await _repository.ListForUserWithFilters(
+					request.UserId, request.PaymentMethod, request.DatePaidNull, request.Currency);
 				_logger.LogDebug(
-					"Fetched {Count} expenses for user {UserId} (month={Month})",
-					list.Count, request.UserId, request.Month ?? "all");
-				return list;
+					"Fetched {Count} filtered expenses for user {UserId}",
+					expenses.Count, request.UserId);
+				return expenses;
 			}
-			catch (Exception ex)
-			{
-				_logger.LogError(ex, "Failed to fetch expenses for user {UserId}", request.UserId);
-				return null;
-			}
+
+			var list = await _repository.ListForUser(request.UserId, request.Month);
+			_logger.LogDebug(
+				"Fetched {Count} expenses for user {UserId} (month={Month})",
+				list.Count, request.UserId, request.Month ?? "all");
+			return list;
 		}
 	}
 }

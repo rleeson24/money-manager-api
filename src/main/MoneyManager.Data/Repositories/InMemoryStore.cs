@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using MoneyManager.Core.Constants;
 using MoneyManager.Core.Models;
 using MoneyManager.Core.Models.Input;
 using MoneyManager.Core.Repositories;
@@ -171,7 +172,7 @@ namespace MoneyManager.Data.Repositories
 				if (datePaidNull == true)
 					list = list.Where(e => e.DatePaid == null);
 				if (!string.IsNullOrWhiteSpace(currency))
-					list = list.Where(e => string.Equals(e.Currency ?? "USD", currency, StringComparison.OrdinalIgnoreCase));
+					list = list.Where(e => string.Equals(e.Currency ?? CurrencyConstants.Default, currency, StringComparison.OrdinalIgnoreCase));
 				return list.OrderBy(e => e.ExpenseDate).ToList();
 			}
 		}

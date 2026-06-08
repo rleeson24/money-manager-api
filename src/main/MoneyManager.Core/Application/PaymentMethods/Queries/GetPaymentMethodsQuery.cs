@@ -20,17 +20,9 @@ namespace MoneyManager.Core.Application.PaymentMethods.Queries
 
 		public async Task<IReadOnlyList<PaymentMethod>?> Handle(GetPaymentMethodsQuery request, CancellationToken cancellationToken)
 		{
-			try
-			{
-				var paymentMethods = await _repository.GetAll();
-				_logger.LogDebug("Fetched {Count} payment methods", paymentMethods.Count);
-				return paymentMethods;
-			}
-			catch (Exception ex)
-			{
-				_logger.LogError(ex, "Failed to fetch payment methods");
-				return null;
-			}
+			var paymentMethods = await _repository.GetAll();
+			_logger.LogDebug("Fetched {Count} payment methods", paymentMethods.Count);
+			return paymentMethods;
 		}
 	}
 }

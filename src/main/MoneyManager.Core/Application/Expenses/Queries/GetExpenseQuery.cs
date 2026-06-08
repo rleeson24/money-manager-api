@@ -20,15 +20,7 @@ namespace MoneyManager.Core.Application.Expenses.Queries
 
 		public async Task<Expense?> Handle(GetExpenseQuery request, CancellationToken cancellationToken)
 		{
-			try
-			{
-				return await _repository.Get(request.Id, request.UserId);
-			}
-			catch (Exception ex)
-			{
-				_logger.LogError(ex, "Failed to fetch expense {ExpenseId} for user {UserId}", request.Id, request.UserId);
-				return null;
-			}
+			return await _repository.Get(request.Id, request.UserId);
 		}
 	}
 }

@@ -1,4 +1,5 @@
 using MoneyManager.Core;
+using MoneyManager.Core.Constants;
 using MoneyManager.Core.Models;
 using MoneyManager.Core.Models.Input;
 using MoneyManager.Data.Models;
@@ -44,7 +45,7 @@ namespace MoneyManager.Data.Mappers
 				ExpenseDate = model.ExpenseDate,
 				Expense = model.Expense,
 				Amount = model.Amount,
-				Currency = string.IsNullOrWhiteSpace(model.Currency) ? "USD" : model.Currency,
+				Currency = string.IsNullOrWhiteSpace(model.Currency) ? CurrencyConstants.Default : model.Currency,
 				PaymentMethod = model.PaymentMethod,
 				Category = model.Category,
 				DatePaid = model.DatePaid,
@@ -61,7 +62,7 @@ namespace MoneyManager.Data.Mappers
 			existing.ExpenseDate = model.ExpenseDate;
 			existing.Expense = model.Expense;
 			existing.Amount = model.Amount;
-			existing.Currency = string.IsNullOrWhiteSpace(model.Currency) ? "USD" : model.Currency;
+			existing.Currency = string.IsNullOrWhiteSpace(model.Currency) ? CurrencyConstants.Default : model.Currency;
 			existing.PaymentMethod = model.PaymentMethod;
 			existing.Category = model.Category;
 			existing.DatePaid = model.DatePaid;
@@ -73,7 +74,7 @@ namespace MoneyManager.Data.Mappers
 			existing.ExpenseDate = expense.ExpenseDate;
 			existing.Expense = expense.ExpenseDescription;
 			existing.Amount = expense.Amount;
-			existing.Currency = string.IsNullOrWhiteSpace(expense.Currency) ? "USD" : expense.Currency;
+			existing.Currency = string.IsNullOrWhiteSpace(expense.Currency) ? CurrencyConstants.Default : expense.Currency;
 			existing.PaymentMethod = expense.PaymentMethod;
 			existing.Category = expense.Category;
 			existing.DatePaid = expense.DatePaid;

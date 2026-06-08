@@ -21,18 +21,10 @@ namespace MoneyManager.Core.Application.Categories.Commands
 
 		public async Task<CategoryMutationResult> Handle(CreateCategoryCommand request, CancellationToken cancellationToken)
 		{
-			try
-			{
-				var result = await _repository.Create(request.Model);
-				if (result.Category != null)
-					_logger.LogInformation("Created category {CategoryId}: {Name}", result.Category.Category_I, result.Category.Name);
-				return result;
-			}
-			catch (Exception ex)
-			{
-				_logger.LogError(ex, "Failed to create category");
-				return CategoryMutationResult.Error("Failed to create category.");
-			}
+			var result = await _repository.Create(request.Model);
+			if (result.Category != null)
+				_logger.LogInformation("Created category {CategoryId}: {Name}", result.Category.Category_I, result.Category.Name);
+			return result;
 		}
 	}
 

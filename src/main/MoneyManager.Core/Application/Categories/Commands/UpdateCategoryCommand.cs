@@ -21,18 +21,10 @@ namespace MoneyManager.Core.Application.Categories.Commands
 
 		public async Task<CategoryMutationResult> Handle(UpdateCategoryCommand request, CancellationToken cancellationToken)
 		{
-			try
-			{
-				var result = await _repository.Update(request.Id, request.Model);
-				if (result.Category != null)
-					_logger.LogInformation("Updated category {CategoryId}", request.Id);
-				return result;
-			}
-			catch (Exception ex)
-			{
-				_logger.LogError(ex, "Failed to update category {CategoryId}", request.Id);
-				return CategoryMutationResult.Error("Failed to update category.");
-			}
+			var result = await _repository.Update(request.Id, request.Model);
+			if (result.Category != null)
+				_logger.LogInformation("Updated category {CategoryId}", request.Id);
+			return result;
 		}
 	}
 

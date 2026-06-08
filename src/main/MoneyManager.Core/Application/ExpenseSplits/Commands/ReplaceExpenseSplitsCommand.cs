@@ -27,37 +27,29 @@ namespace MoneyManager.Core.Application.ExpenseSplits.Commands
 
 		public async Task<ReplaceSplitsResult> Handle(ReplaceExpenseSplitsCommand request, CancellationToken cancellationToken)
 		{
-			try
+			var expense = await _expenseRepository.Get(request.ExpenseId, request.UserId);
+			if (expense == null)
 			{
-				var expense = await _expenseRepository.Get(request.ExpenseId, request.UserId);
-				if (expense == null)
-				{
-					_logger.LogWarning("Replace splits failed: expense {ExpenseId} not found for user {UserId}", request.ExpenseId, request.UserId);
-					return ReplaceSplitsResult.Failure("Expense not found.");
-				}
+				_logger.LogWarning("Replace splits failed: expense {ExpenseId} not found for user {UserId}", request.ExpenseId, request.UserId);
+				return ReplaceSplitsResult.Failure("Expense not found.");
+			}
 
-				var parentAmount = expense.Amount;
-				var items = request.Request.Splits ?? new List<ReplaceExpenseSplitItemModel>();
-				var result = await _splitRepository.ReplaceByExpenseId(request.ExpenseId, request.UserId, parentAmount, items);
-				if (result.IsSuccess)
-				{
-					_logger.LogInformation(
-						"Replaced {SplitCount} splits for expense {ExpenseId}, user {UserId}",
-						items.Count, request.ExpenseId, request.UserId);
-				}
-				else
-				{
-					_logger.LogWarning(
-						"Replace splits validation failed for expense {ExpenseId}, user {UserId}: {Error}",
-						request.ExpenseId, request.UserId, result.ValidationError);
-				}
-				return result;
-			}
-			catch (Exception ex)
+			var parentAmount = expense.Amount;
+			var items = request.Request.Splits ?? new List<ReplaceExpenseSplitItemModel>();
+			var result = await _splitRepository.ReplaceByExpenseId(request.ExpenseId, request.UserId, parentAmount, items);
+			if (result.IsSuccess)
 			{
-				_logger.LogError(ex, "Failed to replace splits for expense {ExpenseId}, user {UserId}", request.ExpenseId, request.UserId);
-				return ReplaceSplitsResult.Failure("An unexpected error occurred.");
+				_logger.LogInformation(
+					"Replaced {SplitCount} splits for expense {ExpenseId}, user {UserId}",
+					items.Count, request.ExpenseId, request.UserId);
 			}
+			else
+			{
+				_logger.LogWarning(
+					"Replace splits validation failed for expense {ExpenseId}, user {UserId}: {Error}",
+					request.ExpenseId, request.UserId, result.ValidationError);
+			}
+			return result;
 		}
 	}
 

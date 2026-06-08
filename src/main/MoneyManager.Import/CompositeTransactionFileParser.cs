@@ -1,6 +1,6 @@
+using MoneyManager.Core.Constants;
 using MoneyManager.Core.Import;
 using MoneyManager.Core.Models;
-using MoneyManager.Import.Parsers;
 
 namespace MoneyManager.Import
 {
@@ -19,8 +19,8 @@ namespace MoneyManager.Import
 		public async Task<IReadOnlyList<BankTransaction>> ParseAsync(Stream fileContent, string format, ImportSource? importSource = null, CancellationToken cancellationToken = default)
 		{
 			var fmt = format?.Trim().ToUpperInvariant() ?? "";
-			if (fmt != "CSV")
-				throw new NotSupportedException($"Format '{format}' is not supported. Use CSV.");
+			if (!ImportFormat.IsCsv(fmt))
+				throw new NotSupportedException($"Format '{format}' is not supported. Use {ImportFormat.Csv}.");
 
 			if (!importSource.HasValue)
 				throw new InvalidOperationException("Import source is required for CSV import.");

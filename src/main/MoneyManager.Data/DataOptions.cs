@@ -1,3 +1,5 @@
+using MoneyManager.Core.Constants;
+
 namespace MoneyManager.Data
 {
 	/// <summary>
@@ -21,7 +23,7 @@ namespace MoneyManager.Data
 	/// User ID assigned to expenses inserted by Aspire SQL bootstrap (see <c>Data:AspireSeedUserId</c>).
 	/// List/filter APIs scope by authenticated user; use this GUID for local testing against seeded SQL data.
 	/// </summary>
-	public string AspireSeedUserId { get; set; } = "11111111-1111-1111-1111-111111111111";
+	public string AspireSeedUserId { get; set; } = AspireConstants.DefaultSeedUserId;
 
 	/// <summary>
 	/// Set to true by the Aspire AppHost so the API can detect orchestration without relying on DCP env vars alone.

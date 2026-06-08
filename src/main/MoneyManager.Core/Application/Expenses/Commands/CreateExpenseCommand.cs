@@ -22,23 +22,15 @@ namespace MoneyManager.Core.Application.Expenses.Commands
 
 		public async Task<Expense?> Handle(CreateExpenseCommand request, CancellationToken cancellationToken)
 		{
-			try
+			request.Model.CreatedBy ??= request.UserId.ToString();
+			var expense = await _repository.Create(request.UserId, request.Model);
+			if (expense != null)
 			{
-				request.Model.CreatedBy ??= request.UserId.ToString();
-				var expense = await _repository.Create(request.UserId, request.Model);
-				if (expense != null)
-				{
-					_logger.LogInformation(
-						"Created expense {ExpenseId} for user {UserId}: {Amount} on {ExpenseDate}",
-						expense.Expense_I, request.UserId, expense.Amount, expense.ExpenseDate);
-				}
-				return expense;
+				_logger.LogInformation(
+					"Created expense {ExpenseId} for user {UserId}: {Amount} on {ExpenseDate}",
+					expense.Expense_I, request.UserId, expense.Amount, expense.ExpenseDate);
 			}
-			catch (Exception ex)
-			{
-				_logger.LogError(ex, "Failed to create expense for user {UserId}", request.UserId);
-				return null;
-			}
+			return expense;
 		}
 	}
 

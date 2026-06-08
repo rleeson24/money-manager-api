@@ -20,18 +20,10 @@ namespace MoneyManager.Core.Application.Expenses.Commands
 
 		public async Task<bool> Handle(DeleteExpenseCommand request, CancellationToken cancellationToken)
 		{
-			try
-			{
-				var deleted = await _repository.Delete(request.Id, request.UserId);
-				if (deleted)
-					_logger.LogInformation("Deleted expense {ExpenseId} for user {UserId}", request.Id, request.UserId);
-				return deleted;
-			}
-			catch (Exception ex)
-			{
-				_logger.LogError(ex, "Failed to delete expense {ExpenseId} for user {UserId}", request.Id, request.UserId);
-				return false;
-			}
+			var deleted = await _repository.Delete(request.Id, request.UserId);
+			if (deleted)
+				_logger.LogInformation("Deleted expense {ExpenseId} for user {UserId}", request.Id, request.UserId);
+			return deleted;
 		}
 	}
 

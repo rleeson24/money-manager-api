@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using MoneyManager.API.Configuration;
 using MoneyManager.API.Utilities;
 using MoneyManager.Core.Application.Import.Commands;
+using MoneyManager.Core.Constants;
 using MoneyManager.Core.Application.Import.Queries;
 using MoneyManager.Core.Models;
 
@@ -74,7 +75,8 @@ namespace MoneyManager.API.Controllers
 			}
 
 			var fmt = format.Trim().ToUpperInvariant();
-			if (fmt != "CSV")
+
+			if (!ImportFormat.IsCsv(fmt))
 			{
 				_logger.LogWarning(
 					"Import file request rejected for user {UserId}: invalid format {Format}",

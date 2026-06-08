@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using Microsoft.Extensions.Configuration;
+using MoneyManager.Core.Constants;
 
 namespace MoneyManager.API.Utilities
 {
@@ -10,8 +11,6 @@ namespace MoneyManager.API.Utilities
 
 	public class ResolveUserId : IResolveUserId
 	{
-		private const string DefaultAspireSeedUserId = "11111111-1111-1111-1111-111111111111";
-
 		private readonly IConfiguration _configuration;
 
 		public ResolveUserId(IConfiguration configuration)
@@ -33,7 +32,7 @@ namespace MoneyManager.API.Utilities
 			// Dev-only fallback when running under Aspire without an Azure AD token
 			if (user.Identity?.IsAuthenticated != true && IsAspireOrchestrated())
 			{
-				var seed = _configuration["Data:AspireSeedUserId"] ?? DefaultAspireSeedUserId;
+				var seed = _configuration["Data:AspireSeedUserId"] ?? AspireConstants.DefaultSeedUserId;
 				if (Guid.TryParse(seed, out var aspireSeed))
 					return aspireSeed;
 			}
