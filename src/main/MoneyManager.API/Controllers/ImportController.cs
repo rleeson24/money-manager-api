@@ -75,6 +75,7 @@ namespace MoneyManager.API.Controllers
 			}
 
 			var fmt = format.Trim().ToUpperInvariant();
+
 			if (!ImportFormat.IsCsv(fmt))
 			{
 				_logger.LogWarning(
