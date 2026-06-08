@@ -1,7 +1,7 @@
 namespace MoneyManager.Core.Models
 {
 	/// <summary>
-	/// Parsed bank transaction from OFX/QFX/CSV for import. AccountType drives sign rules.
+	/// Parsed bank transaction from CSV for import. AccountType drives sign rules.
 	/// </summary>
 	public class BankTransaction
 	{

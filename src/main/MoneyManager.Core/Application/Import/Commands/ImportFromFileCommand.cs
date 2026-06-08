@@ -135,7 +135,9 @@ namespace MoneyManager.Core.Application.Import.Commands
 		{
 			RuleFor(x => x.UserId).NotEmpty();
 			RuleFor(x => x.PaymentMethodId).GreaterThan(0);
-			RuleFor(x => x.Format).NotEmpty();
+			RuleFor(x => x.Format).NotEmpty()
+				.Must(f => string.Equals(f.Trim(), "CSV", StringComparison.OrdinalIgnoreCase))
+				.WithMessage("Format must be CSV.");
 			RuleFor(x => x.FileContent).NotNull();
 		}
 	}
