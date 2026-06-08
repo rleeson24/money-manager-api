@@ -20,17 +20,9 @@ namespace MoneyManager.Core.Application.Categories.Queries
 
 		public async Task<IReadOnlyList<Category>?> Handle(GetCategoriesQuery request, CancellationToken cancellationToken)
 		{
-			try
-			{
-				var categories = await _repository.GetAll(request.ActiveOnly);
-				_logger.LogDebug("Fetched {Count} categories (activeOnly={ActiveOnly})", categories.Count, request.ActiveOnly);
-				return categories;
-			}
-			catch (Exception ex)
-			{
-				_logger.LogError(ex, "Failed to fetch categories");
-				return null;
-			}
+			var categories = await _repository.GetAll(request.ActiveOnly);
+			_logger.LogDebug("Fetched {Count} categories (activeOnly={ActiveOnly})", categories.Count, request.ActiveOnly);
+			return categories;
 		}
 	}
 }

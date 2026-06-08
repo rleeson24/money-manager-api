@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using MoneyManager.API.Configuration;
 using MoneyManager.API.Utilities;
 using MoneyManager.Core.Application.Import.Commands;
+using MoneyManager.Core.Constants;
 using MoneyManager.Core.Application.Import.Queries;
 using MoneyManager.Core.Models;
 
@@ -60,7 +61,7 @@ namespace MoneyManager.API.Controllers
 			if (string.IsNullOrWhiteSpace(format))
 			{
 				_logger.LogWarning("Import file request rejected for user {UserId}: format missing", userId);
-				return BadRequest(new { error = "Format (OFX, QFX, or CSV) is required." });
+				return BadRequest(new { error = "Format (CSV) is required." });
 			}
 			if (!importSource.HasValue)
 			{
@@ -74,13 +75,13 @@ namespace MoneyManager.API.Controllers
 			}
 
 			var fmt = format.Trim().ToUpperInvariant();
-			if (fmt != "OFX" && fmt != "QFX" && fmt != "CSV")
+			if (!ImportFormat.IsCsv(fmt))
 			{
 				_logger.LogWarning(
 					"Import file request rejected for user {UserId}: invalid format {Format}",
 					userId,
 					fmt);
-				return BadRequest(new { error = "Format must be OFX, QFX, or CSV." });
+				return BadRequest(new { error = "Format must be CSV." });
 			}
 
 			_logger.LogInformation(

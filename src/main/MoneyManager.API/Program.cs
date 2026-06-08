@@ -12,6 +12,7 @@ using MoneyManager.Data;
 using MoneyManager.Import;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.Extensions.Options;
 using Microsoft.Identity.Web;
@@ -136,11 +137,16 @@ app.UseExceptionHandler(exceptionHandlerApp =>
 		if (exception is ValidationException validationException)
 		{
 			context.Response.StatusCode = StatusCodes.Status400BadRequest;
-			context.Response.ContentType = "application/json";
+			context.Response.ContentType = "application/problem+json";
 			var errors = validationException.Errors
 				.GroupBy(e => e.PropertyName)
 				.ToDictionary(g => g.Key, g => g.Select(e => e.ErrorMessage).ToArray());
-			await context.Response.WriteAsJsonAsync(new { error = "Validation failed.", errors });
+			await context.Response.WriteAsJsonAsync(new ValidationProblemDetails(errors)
+			{
+				Status = StatusCodes.Status400BadRequest,
+				Title = "Validation failed",
+				Detail = "One or more validation errors occurred."
+			});
 			return;
 		}
 

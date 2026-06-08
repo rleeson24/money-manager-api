@@ -20,19 +20,11 @@ namespace MoneyManager.Core.Application.Import.Queries
 
 		public async Task<IReadOnlyList<LastImportDatesForPaymentMethod>> Handle(GetLastImportDatesQuery request, CancellationToken cancellationToken)
 		{
-			try
-			{
-				var results = await _expenseRepository.GetLastImportDates(request.UserId, request.PaymentMethodIds);
-				_logger.LogDebug(
-					"Fetched last import dates for user {UserId} across {PaymentMethodCount} payment methods",
-					request.UserId, request.PaymentMethodIds.Count);
-				return results;
-			}
-			catch (Exception ex)
-			{
-				_logger.LogError(ex, "Failed to fetch last import dates for user {UserId}", request.UserId);
-				throw;
-			}
+			var results = await _expenseRepository.GetLastImportDates(request.UserId, request.PaymentMethodIds);
+			_logger.LogDebug(
+				"Fetched last import dates for user {UserId} across {PaymentMethodCount} payment methods",
+				request.UserId, request.PaymentMethodIds.Count);
+			return results;
 		}
 	}
 }

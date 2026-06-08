@@ -20,18 +20,10 @@ namespace MoneyManager.Core.Application.ExpenseSplits.Commands
 
 		public async Task<bool> Handle(DeleteExpenseSplitCommand request, CancellationToken cancellationToken)
 		{
-			try
-			{
-				var deleted = await _repository.Delete(request.Id, request.UserId);
-				if (deleted)
-					_logger.LogInformation("Deleted expense split {SplitId} for user {UserId}", request.Id, request.UserId);
-				return deleted;
-			}
-			catch (Exception ex)
-			{
-				_logger.LogError(ex, "Failed to delete expense split {SplitId} for user {UserId}", request.Id, request.UserId);
-				return false;
-			}
+			var deleted = await _repository.Delete(request.Id, request.UserId);
+			if (deleted)
+				_logger.LogInformation("Deleted expense split {SplitId} for user {UserId}", request.Id, request.UserId);
+			return deleted;
 		}
 	}
 

@@ -21,18 +21,10 @@ namespace MoneyManager.Core.Application.Expenses.Commands
 		public async Task<bool> Handle(BulkDeleteExpensesCommand request, CancellationToken cancellationToken)
 		{
 			var idList = request.Ids.ToList();
-			try
-			{
-				var success = await _repository.BulkDelete(idList, request.UserId);
-				if (success)
-					_logger.LogInformation("Bulk deleted {Count} expenses for user {UserId}", idList.Count, request.UserId);
-				return success;
-			}
-			catch (Exception ex)
-			{
-				_logger.LogError(ex, "Failed to bulk delete {Count} expenses for user {UserId}", idList.Count, request.UserId);
-				return false;
-			}
+			var success = await _repository.BulkDelete(idList, request.UserId);
+			if (success)
+				_logger.LogInformation("Bulk deleted {Count} expenses for user {UserId}", idList.Count, request.UserId);
+			return success;
 		}
 	}
 

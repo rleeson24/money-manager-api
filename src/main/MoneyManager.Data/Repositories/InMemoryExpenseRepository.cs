@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using MoneyManager.Core;
+using MoneyManager.Core.Constants;
 using MoneyManager.Core.Models;
 using MoneyManager.Core.Models.Input;
 using MoneyManager.Core.Repositories;
@@ -43,7 +44,7 @@ namespace MoneyManager.Data.Repositories
 				ExpenseDate = model.ExpenseDate,
 				ExpenseDescription = model.Expense,
 				Amount = model.Amount,
-				Currency = string.IsNullOrWhiteSpace(model.Currency) ? "USD" : model.Currency,
+				Currency = string.IsNullOrWhiteSpace(model.Currency) ? CurrencyConstants.Default : model.Currency,
 				PaymentMethod = model.PaymentMethod,
 				Category = model.Category,
 				DatePaid = model.DatePaid,
@@ -69,7 +70,7 @@ namespace MoneyManager.Data.Repositories
 				ExpenseDate = expense.ExpenseDate,
 				ExpenseDescription = expense.ExpenseDescription,
 				Amount = expense.Amount,
-				Currency = string.IsNullOrWhiteSpace(expense.Currency) ? "USD" : expense.Currency,
+				Currency = string.IsNullOrWhiteSpace(expense.Currency) ? CurrencyConstants.Default : expense.Currency,
 				PaymentMethod = expense.PaymentMethod,
 				Category = expense.Category,
 				DatePaid = expense.DatePaid,
@@ -159,7 +160,7 @@ namespace MoneyManager.Data.Repositories
 			var results = new List<LastImportDatesForPaymentMethod>();
 			foreach (var pmId in paymentMethodIds)
 			{
-				var forPm = all.Where(e => e.PaymentMethod == pmId && e.CreatedBy == "Import").ToList();
+				var forPm = all.Where(e => e.PaymentMethod == pmId && e.CreatedBy == ExpenseConstants.ImportCreatedBy).ToList();
 				results.Add(new LastImportDatesForPaymentMethod
 				{
 					PaymentMethodId = pmId,

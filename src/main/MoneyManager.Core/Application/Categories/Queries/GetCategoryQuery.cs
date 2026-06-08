@@ -20,15 +20,7 @@ namespace MoneyManager.Core.Application.Categories.Queries
 
 		public async Task<Category?> Handle(GetCategoryQuery request, CancellationToken cancellationToken)
 		{
-			try
-			{
-				return await _repository.GetById(request.Id);
-			}
-			catch (Exception ex)
-			{
-				_logger.LogError(ex, "Failed to fetch category {CategoryId}", request.Id);
-				return null;
-			}
+			return await _repository.GetById(request.Id);
 		}
 	}
 }

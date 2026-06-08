@@ -11,29 +11,33 @@ namespace MoneyManager.Core.Application.ExpenseSplits.Commands
 
 	public class UpdateExpenseSplitHandler : IRequestHandler<UpdateExpenseSplitCommand, ExpenseSplit?>
 	{
-		private readonly IExpenseSplitRepository _repository;
+		private readonly IExpenseRepository _expenseRepository;
+		private readonly IExpenseSplitRepository _splitRepository;
 		private readonly ILogger<UpdateExpenseSplitHandler> _logger;
 
-		public UpdateExpenseSplitHandler(IExpenseSplitRepository repository, ILogger<UpdateExpenseSplitHandler> logger)
+		public UpdateExpenseSplitHandler(
+			IExpenseRepository expenseRepository,
+			IExpenseSplitRepository splitRepository,
+			ILogger<UpdateExpenseSplitHandler> logger)
 		{
-			_repository = repository;
+			_expenseRepository = expenseRepository;
+			_splitRepository = splitRepository;
 			_logger = logger;
 		}
 
 		public async Task<ExpenseSplit?> Handle(UpdateExpenseSplitCommand request, CancellationToken cancellationToken)
 		{
-			try
+			var expense = await _expenseRepository.Get(request.Model.Expense_I, request.UserId);
+			if (expense == null)
 			{
-				var split = await _repository.Update(request.Id, request.UserId, request.Model);
-				if (split != null)
-					_logger.LogInformation("Updated expense split {SplitId} for user {UserId}", request.Id, request.UserId);
-				return split;
-			}
-			catch (Exception ex)
-			{
-				_logger.LogError(ex, "Failed to update expense split {SplitId} for user {UserId}", request.Id, request.UserId);
+				_logger.LogWarning("Update split failed: expense {ExpenseId} not found for user {UserId}", request.Model.Expense_I, request.UserId);
 				return null;
 			}
+
+			var split = await _splitRepository.Update(request.Id, request.UserId, request.Model);
+			if (split != null)
+				_logger.LogInformation("Updated expense split {SplitId} for user {UserId}", request.Id, request.UserId);
+			return split;
 		}
 	}
 

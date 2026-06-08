@@ -5,7 +5,7 @@ namespace MoneyManager.Core.Models.Input
 		public DateTime ExpenseDate { get; set; }
 		public string Expense { get; set; } = string.Empty;
 		public decimal Amount { get; set; }
-		public string Currency { get; set; } = "USD";
+		public string Currency { get; set; } = Constants.CurrencyConstants.Default;
 		public int? PaymentMethod { get; set; }
 		public int? Category { get; set; }
 		public DateTime? DatePaid { get; set; }

@@ -24,22 +24,14 @@ namespace MoneyManager.Core.Application.Expenses.Commands
 		public async Task<bool> Handle(BulkUpdateExpensesCommand request, CancellationToken cancellationToken)
 		{
 			var idList = request.Ids.ToList();
-			try
+			var success = await _repository.BulkUpdate(idList, request.UserId, request.Updates);
+			if (success)
 			{
-				var success = await _repository.BulkUpdate(idList, request.UserId, request.Updates);
-				if (success)
-				{
-					_logger.LogInformation(
-						"Bulk updated {Count} expenses for user {UserId} ({FieldCount} fields)",
-						idList.Count, request.UserId, request.Updates.Count);
-				}
-				return success;
+				_logger.LogInformation(
+					"Bulk updated {Count} expenses for user {UserId} ({FieldCount} fields)",
+					idList.Count, request.UserId, request.Updates.Count);
 			}
-			catch (Exception ex)
-			{
-				_logger.LogError(ex, "Failed to bulk update {Count} expenses for user {UserId}", idList.Count, request.UserId);
-				return false;
-			}
+			return success;
 		}
 	}
 

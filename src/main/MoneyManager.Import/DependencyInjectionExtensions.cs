@@ -8,7 +8,6 @@ namespace MoneyManager.Import
 	{
 		public static IServiceCollection AddImportParsers(this IServiceCollection services)
 		{
-			services.AddScoped<OfxQfxParser>();
 			services.AddScoped<ICsvTransactionParser, DiscoverCreditCsvParser>();
 			services.AddScoped<ICsvTransactionParser, ArvestCsvParser>();
 			services.AddScoped<ICsvTransactionParser, AbfcuCsvParser>();

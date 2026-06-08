@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using MoneyManager.Core;
+using MoneyManager.Core.Constants;
 using MoneyManager.Core.Models;
 using MoneyManager.Core.Models.Input;
 using MoneyManager.Core.Repositories;
@@ -66,7 +67,7 @@ namespace MoneyManager.Data.Repositories
 				if (datePaidNull == true)
 					list = list.Where(e => e.DatePaid == null);
 				if (!string.IsNullOrWhiteSpace(currency))
-					list = list.Where(e => string.Equals(e.Currency ?? "USD", currency, StringComparison.OrdinalIgnoreCase));
+					list = list.Where(e => string.Equals(e.Currency ?? CurrencyConstants.Default, currency, StringComparison.OrdinalIgnoreCase));
 				return await Task.FromResult(list.OrderBy(e => e.ExpenseDate).ToList());
 			}
 			var result = new List<DbExpense>();
@@ -117,7 +118,7 @@ namespace MoneyManager.Data.Repositories
 					ExpenseDate = model.ExpenseDate,
 					ExpenseDescription = model.Expense,
 					Amount = model.Amount,
-					Currency = string.IsNullOrWhiteSpace(model.Currency) ? "USD" : model.Currency,
+					Currency = string.IsNullOrWhiteSpace(model.Currency) ? CurrencyConstants.Default : model.Currency,
 					PaymentMethod = model.PaymentMethod,
 					Category = model.Category,
 					DatePaid = model.DatePaid,
@@ -318,7 +319,7 @@ namespace MoneyManager.Data.Repositories
 				var results = new List<LastImportDatesForPaymentMethod>();
 				foreach (var pmId in paymentMethodIds)
 				{
-					var forPm = list.Where(e => e.PaymentMethod == pmId && e.CreatedBy == "Import").ToList();
+					var forPm = list.Where(e => e.PaymentMethod == pmId && e.CreatedBy == ExpenseConstants.ImportCreatedBy).ToList();
 					results.Add(new LastImportDatesForPaymentMethod
 					{
 						PaymentMethodId = pmId,
@@ -338,7 +339,7 @@ namespace MoneyManager.Data.Repositories
 			var parameters = new List<SqlParameter>
 			{
 				new SqlParameter("@UserId", userId),
-				new SqlParameter("@CreatedBy", "Import")
+				new SqlParameter("@CreatedBy", ExpenseConstants.ImportCreatedBy)
 			};
 			for (var i = 0; i < paymentMethodIds.Count; i++)
 				parameters.Add(new SqlParameter("@pm" + i, paymentMethodIds[i]));
@@ -414,7 +415,7 @@ namespace MoneyManager.Data.Repositories
 					new SqlParameter("@ExpenseDate", expense.ExpenseDate),
 					new SqlParameter("@Expense", expense.Expense),
 					new SqlParameter("@Amount", expense.Amount),
-					new SqlParameter("@Currency", string.IsNullOrWhiteSpace(expense.Currency) ? "USD" : expense.Currency),
+					new SqlParameter("@Currency", string.IsNullOrWhiteSpace(expense.Currency) ? CurrencyConstants.Default : expense.Currency),
 					new SqlParameter("@PaymentMethod", (object?)expense.PaymentMethod ?? DBNull.Value),
 					new SqlParameter("@Category", (object?)expense.Category ?? DBNull.Value),
 					new SqlParameter("@DatePaid", (object?)expense.DatePaid ?? DBNull.Value),

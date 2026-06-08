@@ -11,33 +11,37 @@ namespace MoneyManager.Core.Application.ExpenseSplits.Commands
 
 	public class CreateExpenseSplitHandler : IRequestHandler<CreateExpenseSplitCommand, ExpenseSplit?>
 	{
-		private readonly IExpenseSplitRepository _repository;
+		private readonly IExpenseRepository _expenseRepository;
+		private readonly IExpenseSplitRepository _splitRepository;
 		private readonly ILogger<CreateExpenseSplitHandler> _logger;
 
-		public CreateExpenseSplitHandler(IExpenseSplitRepository repository, ILogger<CreateExpenseSplitHandler> logger)
+		public CreateExpenseSplitHandler(
+			IExpenseRepository expenseRepository,
+			IExpenseSplitRepository splitRepository,
+			ILogger<CreateExpenseSplitHandler> logger)
 		{
-			_repository = repository;
+			_expenseRepository = expenseRepository;
+			_splitRepository = splitRepository;
 			_logger = logger;
 		}
 
 		public async Task<ExpenseSplit?> Handle(CreateExpenseSplitCommand request, CancellationToken cancellationToken)
 		{
-			try
+			var expense = await _expenseRepository.Get(request.Model.Expense_I, request.UserId);
+			if (expense == null)
 			{
-				var split = await _repository.Create(request.UserId, request.Model);
-				if (split != null)
-				{
-					_logger.LogInformation(
-						"Created expense split {SplitId} for expense {ExpenseId}, user {UserId}",
-						split.Id, request.Model.Expense_I, request.UserId);
-				}
-				return split;
-			}
-			catch (Exception ex)
-			{
-				_logger.LogError(ex, "Failed to create expense split for expense {ExpenseId}, user {UserId}", request.Model.Expense_I, request.UserId);
+				_logger.LogWarning("Create split failed: expense {ExpenseId} not found for user {UserId}", request.Model.Expense_I, request.UserId);
 				return null;
 			}
+
+			var split = await _splitRepository.Create(request.UserId, request.Model);
+			if (split != null)
+			{
+				_logger.LogInformation(
+					"Created expense split {SplitId} for expense {ExpenseId}, user {UserId}",
+					split.Id, request.Model.Expense_I, request.UserId);
+			}
+			return split;
 		}
 	}
 

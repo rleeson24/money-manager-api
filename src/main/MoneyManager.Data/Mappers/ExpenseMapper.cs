@@ -1,3 +1,4 @@
+using MoneyManager.Core.Constants;
 using MoneyManager.Data.Models;
 using Microsoft.Data.SqlClient;
 
@@ -18,7 +19,7 @@ namespace MoneyManager.Data.Mappers
 				ExpenseDate = reader.GetDateTime(reader.GetOrdinal("ExpenseDate")),
 				Expense = reader.GetString(reader.GetOrdinal("Expense")),
 				Amount = reader.GetDecimal(reader.GetOrdinal("Amount")),
-				Currency = reader.IsDBNull(currencyOrdinal) ? "USD" : reader.GetString(currencyOrdinal),
+				Currency = reader.IsDBNull(currencyOrdinal) ? CurrencyConstants.Default : reader.GetString(currencyOrdinal),
 				PaymentMethod = reader.IsDBNull(paymentMethodOrdinal) ? null : reader.GetInt32(paymentMethodOrdinal),
 				Category = reader.IsDBNull(categoryOrdinal) ? null : reader.GetInt32(categoryOrdinal),
 				DatePaid = reader.IsDBNull(reader.GetOrdinal("DatePaid")) ? null : reader.GetDateTime(reader.GetOrdinal("DatePaid")),
