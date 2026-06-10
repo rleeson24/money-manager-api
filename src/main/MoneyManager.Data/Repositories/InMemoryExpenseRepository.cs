@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using MoneyManager.Core;
 using MoneyManager.Core.Constants;
+using MoneyManager.Core.Expenses;
 using MoneyManager.Core.Models;
 using MoneyManager.Core.Models.Input;
 using MoneyManager.Core.Repositories;
@@ -91,22 +92,7 @@ namespace MoneyManager.Data.Repositories
 			if (current == null) return Task.FromResult(UpdateExpenseResult.NotFound());
 			if (expectedModifiedDateTime.HasValue && current.ModifiedDateTime != expectedModifiedDateTime.Value)
 				return Task.FromResult(UpdateExpenseResult.Conflict(current));
-			var patched = new Expense
-			{
-				Expense_I = current.Expense_I,
-				ExpenseDate = updates.TryGetValue("ExpenseDate", out var d) && d is DateTime dt ? dt : current.ExpenseDate,
-				ExpenseDescription = updates.TryGetValue("Expense", out var desc) && desc is string s ? s : current.ExpenseDescription,
-				Amount = updates.TryGetValue("Amount", out var a) && a is decimal amt ? amt : current.Amount,
-				Currency = updates.TryGetValue("Currency", out var cur) && cur is string curStr ? curStr : current.Currency,
-				PaymentMethod = updates.ContainsKey("PaymentMethod") ? (int?)updates["PaymentMethod"] : current.PaymentMethod,
-				Category = updates.ContainsKey("Category") ? (int?)updates["Category"] : current.Category,
-				DatePaid = updates.ContainsKey("DatePaid") ? (DateTime?)updates["DatePaid"] : current.DatePaid,
-				CreatedDateTime = current.CreatedDateTime,
-				ModifiedDateTime = _nowProvider.UtcNow,
-				IsSplit = updates.TryGetValue("IsSplit", out var isSplitObj) && isSplitObj is bool isSplitVal ? isSplitVal : current.IsSplit,
-				ExcludeFromCredit = updates.TryGetValue("ExcludeFromCredit", out var excludeObj) && excludeObj is bool excludeVal ? excludeVal : current.ExcludeFromCredit,
-				CreatedBy = current.CreatedBy
-			};
+			var patched = ExpensePatchApplicator.Apply(current, updates, _nowProvider.UtcNow);
 			_store.UpdateExpense(id, patched);
 			return Task.FromResult(UpdateExpenseResult.Success(patched));
 		}
@@ -120,18 +106,7 @@ namespace MoneyManager.Data.Repositories
 			if (idList.Count == 0 || updates.Count == 0) return Task.FromResult(false);
 			var now = _nowProvider.UtcNow;
 			var count = _store.UpdateExpenses(idList, e =>
-			{
-				if (updates.TryGetValue("ExpenseDate", out var d) && d is DateTime dt) e.ExpenseDate = dt;
-				if (updates.TryGetValue("Expense", out var desc) && desc is string s) e.ExpenseDescription = s;
-				if (updates.TryGetValue("Amount", out var a) && a is decimal amt) e.Amount = amt;
-				if (updates.TryGetValue("Currency", out var cur) && cur is string curStr) e.Currency = curStr;
-				if (updates.ContainsKey("PaymentMethod")) e.PaymentMethod = (int?)updates["PaymentMethod"];
-				if (updates.ContainsKey("Category")) e.Category = (int?)updates["Category"];
-				if (updates.ContainsKey("DatePaid")) e.DatePaid = (DateTime?)updates["DatePaid"];
-				if (updates.TryGetValue("IsSplit", out var isSplitObj) && isSplitObj is bool isSplitVal) e.IsSplit = isSplitVal;
-				if (updates.TryGetValue("ExcludeFromCredit", out var excludeObj) && excludeObj is bool excludeVal) e.ExcludeFromCredit = excludeVal;
-				e.ModifiedDateTime = now;
-			});
+				ExpensePatchApplicator.ApplyTo(e, updates, now));
 			return Task.FromResult(count > 0);
 		}
 

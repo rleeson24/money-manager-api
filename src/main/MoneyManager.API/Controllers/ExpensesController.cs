@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using System.Globalization;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -10,6 +9,7 @@ using MoneyManager.Core.Application.ExpenseSplits.Commands;
 using MoneyManager.Core.Application.ExpenseSplits.Queries;
 using MoneyManager.Core.Application.Expenses.Commands;
 using MoneyManager.Core.Application.Expenses.Queries;
+using MoneyManager.Core.Expenses;
 using MoneyManager.Core.Models;
 using MoneyManager.Core.Models.Input;
 using System.Text.Json;
@@ -104,80 +104,16 @@ namespace MoneyManager.API.Controllers
 			if (UnauthorizedIfNoUser(out var userId) is { } unauthorized)
 				return unauthorized;
 
-			var updates = new Dictionary<string, object?>();
-			DateTime? expectedModifiedDateTime = null;
-			foreach (var prop in jsonElement.EnumerateObject())
-			{
-				var key = prop.Name;
-				var value = prop.Value;
-
-				if (key == "ModifiedDateTime")
-				{
-					expectedModifiedDateTime = ParseDateTimeFromElement(value);
-					continue;
-				}
-				if (key == "CreatedDateTime")
-					continue;
-
-				if (value.ValueKind == JsonValueKind.Null)
-				{
-					updates[key] = null;
-				}
-				else if (value.ValueKind == JsonValueKind.String)
-				{
-					var strValue = value.GetString();
-					if (key == "ExpenseDate" || key == "DatePaid")
-					{
-						if (DateTime.TryParse(strValue, out var dateValue))
-							updates[key] = dateValue;
-					}
-					else
-					{
-						updates[key] = strValue;
-					}
-				}
-				else if (value.ValueKind == JsonValueKind.Number)
-				{
-					if (key == "Amount" || key == "PaymentMethod" || key == "Category")
-					{
-						if (value.TryGetInt32(out var intValue))
-							updates[key] = intValue;
-						else if (value.TryGetDecimal(out var decimalValue))
-							updates[key] = decimalValue;
-					}
-				}
-				else if (value.ValueKind == JsonValueKind.True || value.ValueKind == JsonValueKind.False)
-				{
-					var boolKey = key switch
-					{
-						"isSplit" => "IsSplit",
-						"excludeFromCredit" => "ExcludeFromCredit",
-						_ => key
-					};
-					updates[boolKey] = value.GetBoolean();
-				}
-			}
+			var parsed = ExpensePatchParser.Parse(jsonElement);
 
 			var result = await _mediator.Send(
-				new PatchExpenseCommand(id, userId, updates, expectedModifiedDateTime),
+				new PatchExpenseCommand(id, userId, parsed.Updates, parsed.ExpectedModifiedDateTime),
 				cancellationToken);
 			if (result.IsSuccess)
 				return Ok(result.Updated);
 			if (result.IsConflict)
 				return ApiResults.Conflict("The expense was modified by another request.", result.ConflictCurrent);
 			return ApiResults.NotFound("Expense not found.");
-		}
-
-		private static DateTime? ParseDateTimeFromElement(JsonElement value)
-		{
-			if (value.ValueKind == JsonValueKind.Null) return null;
-			if (value.ValueKind == JsonValueKind.String && value.GetString() is { } s)
-			{
-				return DateTime.TryParse(s, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var d)
-					? d
-					: null;
-			}
-			return null;
 		}
 
 		[HttpDelete("{id}")]
@@ -200,15 +136,15 @@ namespace MoneyManager.API.Controllers
 
 			var updates = new Dictionary<string, object?>();
 			if (request.ExpenseDate != null)
-				updates["ExpenseDate"] = request.ExpenseDate;
+				updates[ExpenseFieldNames.ExpenseDate] = request.ExpenseDate;
 			if (request.setCategoryToNull == true)
-				updates["Category"] = null;
+				updates[ExpenseFieldNames.Category] = null;
 			else if (request.Category != null)
-				updates["Category"] = request.Category;
+				updates[ExpenseFieldNames.Category] = request.Category;
 			if (request.setDatePaidToNull == true)
-				updates["DatePaid"] = null;
+				updates[ExpenseFieldNames.DatePaid] = null;
 			else if (request.DatePaid != null)
-				updates["DatePaid"] = request.DatePaid;
+				updates[ExpenseFieldNames.DatePaid] = request.DatePaid;
 
 			var success = await _mediator.Send(
 				new BulkUpdateExpensesCommand(request.Ids, userId, updates),

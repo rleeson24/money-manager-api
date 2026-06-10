@@ -1,4 +1,6 @@
+using FluentValidation;
 using MediatR;
+using MoneyManager.Core.Expenses;
 using MoneyManager.Core.Models;
 using MoneyManager.Core.Repositories;
 using Microsoft.Extensions.Logging;
@@ -37,6 +39,18 @@ namespace MoneyManager.Core.Application.Expenses.Commands
 				_logger.LogWarning("Patch conflict on expense {ExpenseId} for user {UserId}", request.Id, request.UserId);
 			}
 			return result;
+		}
+	}
+
+	public class PatchExpenseCommandValidator : AbstractValidator<PatchExpenseCommand>
+	{
+		public PatchExpenseCommandValidator()
+		{
+			RuleFor(x => x.Id).GreaterThan(0);
+			RuleFor(x => x.UserId).NotEmpty();
+			RuleFor(x => x.Updates)
+				.Must(updates => updates.Keys.All(ExpenseFieldNames.IsPatchableField))
+				.WithMessage("One or more patch fields are not supported.");
 		}
 	}
 }
