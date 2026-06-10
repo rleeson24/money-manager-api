@@ -1,3 +1,4 @@
+using FluentValidation;
 using MediatR;
 using MoneyManager.Core.Models;
 using MoneyManager.Core.Repositories;
@@ -26,6 +27,17 @@ namespace MoneyManager.Core.Application.Expenses.Commands
 			else if (result.IsConflict)
 				_logger.LogWarning("Update conflict on expense {ExpenseId} for user {UserId}", request.Id, request.UserId);
 			return result;
+		}
+	}
+
+	public class UpdateExpenseCommandValidator : AbstractValidator<UpdateExpenseCommand>
+	{
+		public UpdateExpenseCommandValidator()
+		{
+			RuleFor(x => x.Id).GreaterThan(0);
+			RuleFor(x => x.UserId).NotEmpty();
+			RuleFor(x => x.Expense.ExpenseDescription).NotEmpty().MaximumLength(500);
+			RuleFor(x => x.Expense.Currency).NotEmpty().MaximumLength(10);
 		}
 	}
 }

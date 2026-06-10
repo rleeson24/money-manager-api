@@ -1,5 +1,6 @@
 using FluentValidation;
 using MediatR;
+using MoneyManager.Core.Application.Categories;
 using MoneyManager.Core.Repositories;
 using Microsoft.Extensions.Logging;
 
@@ -29,9 +30,21 @@ namespace MoneyManager.Core.Application.Categories.Commands
 
 	public class DeleteCategoryCommandValidator : AbstractValidator<DeleteCategoryCommand>
 	{
-		public DeleteCategoryCommandValidator()
+		public DeleteCategoryCommandValidator(ICategoryRepository repository)
 		{
 			RuleFor(x => x.Id).GreaterThan(0);
+			RuleFor(x => x).CustomAsync(async (command, context, cancellationToken) =>
+			{
+				var existing = await repository.GetAll();
+				var current = existing.FirstOrDefault(c => c.Category_I == command.Id);
+				if (current == null)
+					return;
+
+				var inUse = await repository.IsInUse(command.Id);
+				var error = CategoryCommandValidationRules.ValidateDelete(current, existing, inUse);
+				if (error != null)
+					context.AddFailure(error);
+			});
 		}
 	}
 }

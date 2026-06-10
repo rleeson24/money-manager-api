@@ -14,7 +14,7 @@ namespace MoneyManager.Core.Application.Import.Commands
 		Guid UserId,
 		Stream FileContent,
 		string Format,
-		ImportSource ImportSource,
+		ImportSource? ImportSource,
 		int PaymentMethodId) : IRequest<ImportResult>;
 
 	public class ImportFromFileHandler : IRequestHandler<ImportFromFileCommand, ImportResult>
@@ -35,15 +35,16 @@ namespace MoneyManager.Core.Application.Import.Commands
 
 		public async Task<ImportResult> Handle(ImportFromFileCommand request, CancellationToken cancellationToken)
 		{
+			var importSource = request.ImportSource!.Value;
 			_logger.LogInformation(
 				"Starting import for user {UserId}: format={Format}, source={ImportSource}, paymentMethod={PaymentMethodId}",
-				request.UserId, request.Format, request.ImportSource, request.PaymentMethodId);
+				request.UserId, request.Format, importSource, request.PaymentMethodId);
 
 			var errors = new List<string>();
 			IReadOnlyList<BankTransaction> transactions;
 			try
 			{
-				transactions = await _parser.ParseAsync(request.FileContent, request.Format, request.ImportSource, cancellationToken);
+				transactions = await _parser.ParseAsync(request.FileContent, request.Format, importSource, cancellationToken);
 			}
 			catch (Exception ex)
 			{
@@ -54,8 +55,8 @@ namespace MoneyManager.Core.Application.Import.Commands
 
 			_logger.LogInformation("Parsed {TransactionCount} transactions for user {UserId}", transactions.Count, request.UserId);
 
-			var accountType = request.ImportSource.ToAccountType();
-			var normalized = transactions.Select(t => ApplySignRules(t, accountType, request.ImportSource)).ToList();
+			var accountType = importSource.ToAccountType();
+			var normalized = transactions.Select(t => ApplySignRules(t, accountType, importSource)).ToList();
 
 			if (normalized.Count == 0)
 			{
@@ -126,8 +127,9 @@ namespace MoneyManager.Core.Application.Import.Commands
 		public ImportFromFileCommandValidator()
 		{
 			RuleFor(x => x.UserId).NotEmpty();
-			RuleFor(x => x.PaymentMethodId).GreaterThan(0);
-			RuleFor(x => x.Format).NotEmpty()
+			RuleFor(x => x.PaymentMethodId).GreaterThan(0).WithMessage("Payment method is required.");
+			RuleFor(x => x.ImportSource).NotNull().WithMessage("Import source is required.");
+			RuleFor(x => x.Format).NotEmpty().WithMessage("Format (CSV) is required.")
 				.Must(ImportFormat.IsCsv)
 				.WithMessage($"Format must be {ImportFormat.Csv}.");
 			RuleFor(x => x.FileContent).NotNull();

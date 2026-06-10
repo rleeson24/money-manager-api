@@ -1,5 +1,6 @@
 using FluentValidation;
 using MediatR;
+using MoneyManager.Core.Application.Categories;
 using MoneyManager.Core.Models.Input;
 using MoneyManager.Core.Repositories;
 using Microsoft.Extensions.Logging;
@@ -30,12 +31,23 @@ namespace MoneyManager.Core.Application.Categories.Commands
 
 	public class UpdateCategoryCommandValidator : AbstractValidator<UpdateCategoryCommand>
 	{
-		public UpdateCategoryCommandValidator()
+		public UpdateCategoryCommandValidator(ICategoryRepository repository)
 		{
 			RuleFor(x => x.Id).GreaterThan(0);
 			When(x => x.Model.Name != null, () =>
 			{
 				RuleFor(x => x.Model.Name!).NotEmpty().MaximumLength(100);
+			});
+			RuleFor(x => x).CustomAsync(async (command, context, cancellationToken) =>
+			{
+				var existing = await repository.GetAll();
+				var current = existing.FirstOrDefault(c => c.Category_I == command.Id);
+				if (current == null)
+					return;
+
+				var error = CategoryCommandValidationRules.ValidateUpdate(current, command.Model, existing);
+				if (error != null)
+					context.AddFailure(error);
 			});
 		}
 	}

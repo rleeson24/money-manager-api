@@ -67,11 +67,6 @@ namespace MoneyManager.Data.Repositories
 		{
 			lock (_lock)
 			{
-				var finalized = FinalizeCategories(_categories);
-				var validation = CategoryValidator.ValidateCreate(model, finalized);
-				if (validation != null)
-					return CategoryMutationResult.Error(validation);
-
 				var id = _nextCategoryId++;
 				var cat = new Category
 				{
@@ -93,12 +88,6 @@ namespace MoneyManager.Data.Repositories
 				var idx = _categories.FindIndex(c => c.Category_I == id);
 				if (idx < 0)
 					return CategoryMutationResult.NotFound();
-
-				var finalized = FinalizeCategories(_categories);
-				var current = finalized.First(c => c.Category_I == id);
-				var validation = CategoryValidator.ValidateUpdate(current, model, finalized);
-				if (validation != null)
-					return CategoryMutationResult.Error(validation);
 
 				var cat = _categories[idx];
 				if (model.Name != null)
@@ -123,13 +112,6 @@ namespace MoneyManager.Data.Repositories
 				var idx = _categories.FindIndex(c => c.Category_I == id);
 				if (idx < 0)
 					return CategoryDeleteResult.NotFound();
-
-				var finalized = FinalizeCategories(_categories);
-				var current = finalized.First(c => c.Category_I == id);
-				var inUse = IsCategoryInUse(id);
-				var validation = CategoryValidator.ValidateDelete(current, finalized, inUse);
-				if (validation != null)
-					return CategoryDeleteResult.Error(validation);
 
 				_categories.RemoveAt(idx);
 				return CategoryDeleteResult.Ok();
