@@ -1,9 +1,10 @@
 using MoneyManager.Core.Models;
 using MoneyManager.Core.Models.Input;
+using MoneyManager.Core.Utilities;
 
-namespace MoneyManager.Core.Utilities
+namespace MoneyManager.Core.Application.Categories
 {
-	public static class CategoryValidator
+	internal static class CategoryCommandValidationRules
 	{
 		public static string? ValidateCreate(CreateCategoryModel model, IReadOnlyList<Category> existing)
 		{

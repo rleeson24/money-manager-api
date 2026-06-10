@@ -1,3 +1,4 @@
+using FluentValidation;
 using MediatR;
 using MoneyManager.Core.Models;
 using MoneyManager.Core.Repositories;
@@ -21,6 +22,15 @@ namespace MoneyManager.Core.Application.Expenses.Queries
 		public async Task<Expense?> Handle(GetExpenseQuery request, CancellationToken cancellationToken)
 		{
 			return await _repository.Get(request.Id, request.UserId);
+		}
+	}
+
+	public class GetExpenseQueryValidator : AbstractValidator<GetExpenseQuery>
+	{
+		public GetExpenseQueryValidator()
+		{
+			RuleFor(x => x.Id).GreaterThan(0);
+			RuleFor(x => x.UserId).NotEmpty();
 		}
 	}
 }

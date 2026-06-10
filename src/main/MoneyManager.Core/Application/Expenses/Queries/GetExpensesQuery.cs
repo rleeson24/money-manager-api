@@ -1,3 +1,4 @@
+using FluentValidation;
 using MediatR;
 using MoneyManager.Core.Models;
 using MoneyManager.Core.Repositories;
@@ -44,6 +45,23 @@ namespace MoneyManager.Core.Application.Expenses.Queries
 				"Fetched {Count} expenses for user {UserId} (month={Month})",
 				list.Count, request.UserId, request.Month ?? "all");
 			return list;
+		}
+	}
+
+	public class GetExpensesQueryValidator : AbstractValidator<GetExpensesQuery>
+	{
+		public GetExpensesQueryValidator()
+		{
+			RuleFor(x => x.UserId).NotEmpty();
+			RuleFor(x => x)
+				.Must(query =>
+				{
+					var useFilters = query.PaymentMethod.HasValue
+						|| query.DatePaidNull.HasValue
+						|| !string.IsNullOrWhiteSpace(query.Currency);
+					return !(useFilters && !string.IsNullOrWhiteSpace(query.Month));
+				})
+				.WithMessage("Cannot combine month with payment method, datePaidNull, or currency filters.");
 		}
 	}
 }

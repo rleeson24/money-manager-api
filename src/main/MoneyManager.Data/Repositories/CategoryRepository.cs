@@ -65,11 +65,6 @@ namespace MoneyManager.Data.Repositories
 
 		public async Task<CategoryMutationResult> Create(CreateCategoryModel model)
 		{
-			var existing = await GetAll();
-			var validation = CategoryValidator.ValidateCreate(model, existing);
-			if (validation != null)
-				return CategoryMutationResult.Error(validation);
-
 			var sql = @"INSERT INTO Categories (Name, ParentCategory_I, Required, Archived)
 				VALUES (@Name, @ParentCategory_I, @Required, 0);
 				SELECT CAST(SCOPE_IDENTITY() AS INT);";
@@ -92,10 +87,6 @@ namespace MoneyManager.Data.Repositories
 			var current = existing.FirstOrDefault(c => c.Category_I == id);
 			if (current == null)
 				return CategoryMutationResult.NotFound();
-
-			var validation = CategoryValidator.ValidateUpdate(current, model, existing);
-			if (validation != null)
-				return CategoryMutationResult.Error(validation);
 
 			var name = model.Name?.Trim() ?? current.Name;
 			int? parent = current.ParentCategory_I;
@@ -126,11 +117,6 @@ namespace MoneyManager.Data.Repositories
 			var current = existing.FirstOrDefault(c => c.Category_I == id);
 			if (current == null)
 				return CategoryDeleteResult.NotFound();
-
-			var inUse = await IsInUse(id);
-			var validation = CategoryValidator.ValidateDelete(current, existing, inUse);
-			if (validation != null)
-				return CategoryDeleteResult.Error(validation);
 
 			await _db.ExecuteNonQuery("DELETE FROM Categories WHERE Category_I = @Id", [new SqlParameter("@Id", id)]);
 			return CategoryDeleteResult.Ok();

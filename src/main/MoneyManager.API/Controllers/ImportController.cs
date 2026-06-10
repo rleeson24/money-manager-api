@@ -5,7 +5,6 @@ using MoneyManager.API.Configuration;
 using MoneyManager.API.Infrastructure;
 using MoneyManager.API.Utilities;
 using MoneyManager.Core.Application.Import.Commands;
-using MoneyManager.Core.Constants;
 using MoneyManager.Core.Application.Import.Queries;
 using MoneyManager.Core.Models;
 
@@ -59,40 +58,19 @@ namespace MoneyManager.API.Controllers
 				_logger.LogWarning("Import file request rejected for user {UserId}: no file uploaded", userId);
 				return ApiResults.ValidationError("No file uploaded.");
 			}
-			if (string.IsNullOrWhiteSpace(format))
-			{
-				_logger.LogWarning("Import file request rejected for user {UserId}: format missing", userId);
-				return ApiResults.ValidationError("Format (CSV) is required.");
-			}
-			if (!importSource.HasValue)
-			{
-				_logger.LogWarning("Import file request rejected for user {UserId}: import source missing", userId);
-				return ApiResults.ValidationError("Import source is required.");
-			}
-			if (!paymentMethodId.HasValue || paymentMethodId.Value <= 0)
-			{
-				_logger.LogWarning("Import file request rejected for user {UserId}: payment method missing", userId);
-				return ApiResults.ValidationError("Payment method is required.");
-			}
-
-			var fmt = format.Trim().ToUpperInvariant();
-
-			if (!ImportFormat.IsCsv(fmt))
-			{
-				_logger.LogWarning(
-					"Import file request rejected for user {UserId}: invalid format {Format}",
-					userId,
-					fmt);
-				return ApiResults.ValidationError("Format must be CSV.");
-			}
 
 			_logger.LogInformation(
 				"Import file request accepted for user {UserId}: {FileName} ({FileSize} bytes), format={Format}, source={ImportSource}, paymentMethod={PaymentMethodId}",
-				userId, file.FileName, file.Length, fmt, importSource, paymentMethodId);
+				userId, file.FileName, file.Length, format, importSource, paymentMethodId);
 
 			await using var stream = file.OpenReadStream();
 			var result = await _mediator.Send(
-				new ImportFromFileCommand(userId.Value, stream, format.Trim(), importSource.Value, paymentMethodId.Value),
+				new ImportFromFileCommand(
+					userId.Value,
+					stream,
+					format?.Trim() ?? string.Empty,
+					importSource,
+					paymentMethodId ?? 0),
 				cancellationToken);
 
 			_logger.LogInformation(
