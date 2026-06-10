@@ -2,6 +2,7 @@ using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MoneyManager.API.Configuration;
+using MoneyManager.API.Infrastructure;
 using MoneyManager.Core.Application.Categories.Commands;
 using MoneyManager.Core.Application.Categories.Queries;
 using MoneyManager.Core.Models.Input;
@@ -24,9 +25,7 @@ namespace MoneyManager.API.Controllers
 		public async Task<IActionResult> GetCategories([FromQuery] bool activeOnly = false, CancellationToken cancellationToken = default)
 		{
 			var categories = await _mediator.Send(new GetCategoriesQuery(activeOnly), cancellationToken);
-			if (categories != null)
-				return Ok(categories);
-			return Problem();
+			return Ok(categories);
 		}
 
 		[HttpGet("{id}")]
@@ -35,7 +34,7 @@ namespace MoneyManager.API.Controllers
 			var category = await _mediator.Send(new GetCategoryQuery(id), cancellationToken);
 			if (category != null)
 				return Ok(category);
-			return NotFound();
+			return ApiResults.NotFound("Category not found.");
 		}
 
 		[HttpPost]
@@ -43,10 +42,10 @@ namespace MoneyManager.API.Controllers
 		{
 			var result = await _mediator.Send(new CreateCategoryCommand(model), cancellationToken);
 			if (result.ValidationError != null)
-				return BadRequest(new { error = result.ValidationError });
+				return ApiResults.ValidationError(result.ValidationError);
 			if (result.Category != null)
 				return CreatedAtAction(nameof(GetCategory), new { id = result.Category.Category_I }, result.Category);
-			return Problem();
+			return ApiResults.UnexpectedFailure();
 		}
 
 		[HttpPut("{id}")]
@@ -54,12 +53,12 @@ namespace MoneyManager.API.Controllers
 		{
 			var result = await _mediator.Send(new UpdateCategoryCommand(id, model), cancellationToken);
 			if (result.ValidationError != null)
-				return BadRequest(new { error = result.ValidationError });
+				return ApiResults.ValidationError(result.ValidationError);
 			if (result.Category != null)
 				return Ok(result.Category);
 			if (result.IsNotFound)
-				return NotFound();
-			return Problem();
+				return ApiResults.NotFound("Category not found.");
+			return ApiResults.UnexpectedFailure();
 		}
 
 		[HttpDelete("{id}")]
@@ -67,12 +66,12 @@ namespace MoneyManager.API.Controllers
 		{
 			var result = await _mediator.Send(new DeleteCategoryCommand(id), cancellationToken);
 			if (result.ValidationError != null)
-				return BadRequest(new { error = result.ValidationError });
+				return ApiResults.ValidationError(result.ValidationError);
 			if (result.Success)
 				return NoContent();
 			if (result.IsNotFound)
-				return NotFound();
-			return Problem();
+				return ApiResults.NotFound("Category not found.");
+			return ApiResults.UnexpectedFailure();
 		}
 	}
 }

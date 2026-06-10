@@ -2,6 +2,7 @@ using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MoneyManager.API.Configuration;
+using MoneyManager.API.Infrastructure;
 using MoneyManager.API.Utilities;
 using MoneyManager.Core.Application.Import.Commands;
 using MoneyManager.Core.Constants;
@@ -56,22 +57,22 @@ namespace MoneyManager.API.Controllers
 			if (file == null || file.Length == 0)
 			{
 				_logger.LogWarning("Import file request rejected for user {UserId}: no file uploaded", userId);
-				return BadRequest(new { error = "No file uploaded." });
+				return ApiResults.ValidationError("No file uploaded.");
 			}
 			if (string.IsNullOrWhiteSpace(format))
 			{
 				_logger.LogWarning("Import file request rejected for user {UserId}: format missing", userId);
-				return BadRequest(new { error = "Format (CSV) is required." });
+				return ApiResults.ValidationError("Format (CSV) is required.");
 			}
 			if (!importSource.HasValue)
 			{
 				_logger.LogWarning("Import file request rejected for user {UserId}: import source missing", userId);
-				return BadRequest(new { error = "Import source is required." });
+				return ApiResults.ValidationError("Import source is required.");
 			}
 			if (!paymentMethodId.HasValue || paymentMethodId.Value <= 0)
 			{
 				_logger.LogWarning("Import file request rejected for user {UserId}: payment method missing", userId);
-				return BadRequest(new { error = "Payment method is required." });
+				return ApiResults.ValidationError("Payment method is required.");
 			}
 
 			var fmt = format.Trim().ToUpperInvariant();
@@ -82,7 +83,7 @@ namespace MoneyManager.API.Controllers
 					"Import file request rejected for user {UserId}: invalid format {Format}",
 					userId,
 					fmt);
-				return BadRequest(new { error = "Format must be CSV." });
+				return ApiResults.ValidationError("Format must be CSV.");
 			}
 
 			_logger.LogInformation(
