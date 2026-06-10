@@ -2,8 +2,8 @@ using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MoneyManager.API.Configuration;
+using MoneyManager.API.Filters;
 using MoneyManager.API.Infrastructure;
-using MoneyManager.API.Utilities;
 using MoneyManager.Core.Application.Import.Commands;
 using MoneyManager.Core.Application.Import.Queries;
 using MoneyManager.Core.Models;
@@ -12,19 +12,15 @@ namespace MoneyManager.API.Controllers
 {
 	[ApiController]
 	[Authorize(AuthenticationSchemes = AuthSchemes.Microsoft)]
+	[RequireUserId]
 	[Route("api/import")]
 	public class ImportController : ControllerBase
 	{
-		private readonly IResolveUserId _resolveUserId;
 		private readonly IMediator _mediator;
 		private readonly ILogger<ImportController> _logger;
 
-		public ImportController(
-			IResolveUserId resolveUserId,
-			IMediator mediator,
-			ILogger<ImportController> logger)
+		public ImportController(IMediator mediator, ILogger<ImportController> logger)
 		{
-			_resolveUserId = resolveUserId;
 			_mediator = mediator;
 			_logger = logger;
 		}
@@ -38,6 +34,8 @@ namespace MoneyManager.API.Controllers
 			[FromForm] int? paymentMethodId,
 			CancellationToken cancellationToken)
 		{
+			var userId = UserIdHttpContext.GetRequired(HttpContext);
+
 			_logger.LogInformation(
 				"Import file request received: file={FileName}, size={FileSize}, format={Format}, source={ImportSource}, paymentMethod={PaymentMethodId}",
 				file?.FileName,
@@ -45,13 +43,6 @@ namespace MoneyManager.API.Controllers
 				format,
 				importSource,
 				paymentMethodId);
-
-			var userId = _resolveUserId.Resolve(User);
-			if (userId == null)
-			{
-				_logger.LogWarning("Import file request rejected: unauthorized");
-				return Unauthorized();
-			}
 
 			if (file == null || file.Length == 0)
 			{
@@ -66,7 +57,7 @@ namespace MoneyManager.API.Controllers
 			await using var stream = file.OpenReadStream();
 			var result = await _mediator.Send(
 				new ImportFromFileCommand(
-					userId.Value,
+					userId,
 					stream,
 					format?.Trim() ?? string.Empty,
 					importSource,
@@ -86,9 +77,7 @@ namespace MoneyManager.API.Controllers
 		[HttpGet("last-import-dates")]
 		public async Task<IActionResult> GetLastImportDates([FromQuery] string? paymentMethodIds, CancellationToken cancellationToken = default)
 		{
-			var userId = _resolveUserId.Resolve(User);
-			if (userId == null)
-				return Unauthorized();
+			var userId = UserIdHttpContext.GetRequired(HttpContext);
 
 			var ids = new List<int>();
 			if (!string.IsNullOrWhiteSpace(paymentMethodIds))
@@ -100,7 +89,7 @@ namespace MoneyManager.API.Controllers
 				}
 			}
 
-			var results = await _mediator.Send(new GetLastImportDatesQuery(userId.Value, ids), cancellationToken);
+			var results = await _mediator.Send(new GetLastImportDatesQuery(userId, ids), cancellationToken);
 			return Ok(results);
 		}
 	}
