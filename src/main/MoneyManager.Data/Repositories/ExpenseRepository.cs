@@ -11,8 +11,6 @@ using MoneyManager.Data.Mappers;
 using MoneyManager.Data.Models;
 using MoneyManager.Data.Utilities;
 using Microsoft.Data.SqlClient;
-using Microsoft.Extensions.Options;
-using DataOptions = MoneyManager.Data.DataOptions;
 
 namespace MoneyManager.Data.Repositories
 {
@@ -22,56 +20,29 @@ namespace MoneyManager.Data.Repositories
 		private readonly IExpenseMapper _readerMapper;
 		private readonly ExpenseDomainMapper _domainMapper;
 		private readonly INowProvider _nowProvider;
-		private readonly DataOptions _dataOptions;
 
-		public ExpenseRepository(DbExecutor db, IExpenseMapper readerMapper, ExpenseDomainMapper domainMapper, INowProvider nowProvider, IOptions<DataOptions> dataOptions)
+		public ExpenseRepository(DbExecutor db, IExpenseMapper readerMapper, ExpenseDomainMapper domainMapper, INowProvider nowProvider)
 		{
 			_db = db;
 			_readerMapper = readerMapper;
 			_domainMapper = domainMapper;
 			_nowProvider = nowProvider;
-			_dataOptions = dataOptions.Value;
 		}
 
 		public async Task<Expense?> Get(int id, Guid userId)
 		{
-			if (_dataOptions.UseMockData)
-			{
-				var found = MockData.Expenses.FirstOrDefault(e => e.Expense_I == id);
-				return await Task.FromResult(found);
-			}
 			var db = await GetDb(id, userId);
 			return db != null ? _domainMapper.ToExpense(db) : null;
 		}
 
 		public async Task<IReadOnlyList<Expense>> ListForUser(Guid userId, string? month = null)
 		{
-			if (_dataOptions.UseMockData)
-			{
-				var list = MockData.Expenses.AsEnumerable();
-				if (!string.IsNullOrEmpty(month))
-					list = list.Where(e => e.ExpenseDate.ToString("yyyy-MM") == month);
-				return await Task.FromResult(list.OrderBy(e => e.ExpenseDate).ToList());
-			}
 			var listDb = await ListForUserDb(userId, month);
 			return listDb.Select(_domainMapper.ToExpense).ToList();
 		}
 
-		
-
 		public async Task<IReadOnlyList<Expense>> ListForUserWithFilters(Guid userId, int? paymentMethod = null, bool? datePaidNull = null, string? currency = null)
 		{
-			if (_dataOptions.UseMockData)
-			{
-				var list = MockData.Expenses.AsEnumerable();
-				if (paymentMethod.HasValue)
-					list = list.Where(e => e.PaymentMethod == paymentMethod.Value);
-				if (datePaidNull == true)
-					list = list.Where(e => e.DatePaid == null);
-				if (!string.IsNullOrWhiteSpace(currency))
-					list = list.Where(e => string.Equals(e.Currency ?? CurrencyConstants.Default, currency, StringComparison.OrdinalIgnoreCase));
-				return await Task.FromResult(list.OrderBy(e => e.ExpenseDate).ToList());
-			}
 			var result = new List<DbExpense>();
 			var sql = "SELECT * FROM Expenses WHERE UserId = @UserId";
 			var parameters = new List<SqlParameter>
@@ -110,27 +81,6 @@ namespace MoneyManager.Data.Repositories
 
 		public async Task<Expense?> Create(Guid userId, CreateExpenseModel model)
 		{
-			if (_dataOptions.UseMockData)
-			{
-				var nextId = MockData.Expenses.Count > 0 ? MockData.Expenses.Max(e => e.Expense_I) + 1 : 1;
-				var now = _nowProvider.UtcNow;
-				return await Task.FromResult(new Expense
-				{
-					Expense_I = nextId,
-					ExpenseDate = model.ExpenseDate,
-					ExpenseDescription = model.Expense,
-					Amount = model.Amount,
-					Currency = string.IsNullOrWhiteSpace(model.Currency) ? CurrencyConstants.Default : model.Currency,
-					PaymentMethod = model.PaymentMethod,
-					Category = model.Category,
-					DatePaid = model.DatePaid,
-					CreatedDateTime = now,
-					ModifiedDateTime = now,
-					IsSplit = model.IsSplit,
-					ExcludeFromCredit = model.ExcludeFromCredit,
-					CreatedBy = model.CreatedBy ?? string.Empty
-				});
-			}
 			var db = _domainMapper.ToDbExpense(model, userId);
 			var id = await SaveDb(userId, db);
 			if (id <= 0) return null;
@@ -139,13 +89,9 @@ namespace MoneyManager.Data.Repositories
 
 		public async Task<UpdateExpenseResult> Update(int id, Guid userId, Expense expense)
 		{
-			if (_dataOptions.UseMockData)
-				return await Task.FromResult(UpdateExpenseResult.Success(expense));
-
 			var existing = await GetDb(id, userId);
 			if (existing == null) return UpdateExpenseResult.NotFound();
-			// Optimistic concurrency: compare at millisecond resolution (clients/JSON often drop sub-ms fractional seconds).
-			if (!ModifiedUtcMillisEqual(existing.ModifiedDate, expense.ModifiedDateTime))
+			if (!ExpenseConcurrency.ModifiedUtcMillisEqual(existing.ModifiedDate, expense.ModifiedDateTime))
 			{
 				var current = _domainMapper.ToExpense(existing);
 				return current != null ? UpdateExpenseResult.Conflict(current) : UpdateExpenseResult.NotFound();
@@ -163,13 +109,6 @@ namespace MoneyManager.Data.Repositories
 
 		public async Task<UpdateExpenseResult> Patch(int id, Guid userId, Dictionary<string, object?> updates, DateTime? expectedModifiedDateTime)
 		{
-			if (_dataOptions.UseMockData)
-			{
-				var current = MockData.Expenses.FirstOrDefault(e => e.Expense_I == id);
-				if (current == null) return UpdateExpenseResult.NotFound();
-				var patched = ExpensePatchApplicator.Apply(current, updates, _nowProvider.UtcNow);
-				return await Task.FromResult(UpdateExpenseResult.Success(patched));
-			}
 			var updatesCopy = new Dictionary<string, object?>(updates);
 			updatesCopy.Remove(ExpenseFieldNames.ModifiedDateTime);
 			updatesCopy.Remove(ExpenseFieldNames.CreatedDateTime);
@@ -185,9 +124,6 @@ namespace MoneyManager.Data.Repositories
 
 		public async Task<bool> Delete(int id, Guid userId)
 		{
-			if (_dataOptions.UseMockData)
-				return await Task.FromResult(MockData.Expenses.Any(e => e.Expense_I == id));
-
 			var rowsAffected = await _db.ExecuteNonQuery(
 				"DELETE FROM Expenses WHERE Expense_I = @Id AND UserId = @UserId",
 				[
@@ -199,9 +135,6 @@ namespace MoneyManager.Data.Repositories
 
 		public async Task<bool> BulkUpdate(IEnumerable<int> ids, Guid userId, Dictionary<string, object?> updates)
 		{
-			if (_dataOptions.UseMockData)
-				return await Task.FromResult(ids.Any());
-
 			if (!ids.Any() || !updates.Any())
 				return false;
 
@@ -226,9 +159,6 @@ namespace MoneyManager.Data.Repositories
 
 		public async Task<bool> BulkDelete(IEnumerable<int> ids, Guid userId)
 		{
-			if (_dataOptions.UseMockData)
-				return await Task.FromResult(ids.Any());
-
 			if (!ids.Any())
 				return false;
 
@@ -243,15 +173,6 @@ namespace MoneyManager.Data.Repositories
 
 		public async Task<IReadOnlyList<Expense>> ListForUserInDateRange(Guid userId, DateTime fromDate, DateTime toDate, int? paymentMethodId = null)
 		{
-			if (_dataOptions.UseMockData)
-			{
-				var list = MockData.Expenses
-					.Where(e => e.ExpenseDate.Date >= fromDate.Date && e.ExpenseDate.Date <= toDate.Date)
-					.Where(e => !paymentMethodId.HasValue || e.PaymentMethod == paymentMethodId.Value)
-					.OrderByDescending(e => e.ExpenseDate)
-					.ToList();
-				return await Task.FromResult(list);
-			}
 			var result = new List<DbExpense>();
 			var sql = paymentMethodId.HasValue
 				? "SELECT * FROM Expenses WHERE UserId = @UserId AND ExpenseDate >= @FromDate AND ExpenseDate <= @ToDate AND PaymentMethod = @PaymentMethod ORDER BY ExpenseDate DESC"
@@ -274,22 +195,6 @@ namespace MoneyManager.Data.Repositories
 
 		public async Task<IReadOnlyList<LastImportDatesForPaymentMethod>> GetLastImportDates(Guid userId, IReadOnlyList<int> paymentMethodIds)
 		{
-			if (_dataOptions.UseMockData)
-			{
-				var list = MockData.Expenses.AsEnumerable();
-				var results = new List<LastImportDatesForPaymentMethod>();
-				foreach (var pmId in paymentMethodIds)
-				{
-					var forPm = list.Where(e => e.PaymentMethod == pmId && e.CreatedBy == ExpenseConstants.ImportCreatedBy).ToList();
-					results.Add(new LastImportDatesForPaymentMethod
-					{
-						PaymentMethodId = pmId,
-						LatestExpenseDate = forPm.Any() ? forPm.Max(e => e.ExpenseDate) : null,
-						LatestDatePaid = forPm.Where(e => e.DatePaid.HasValue).Any() ? forPm.Where(e => e.DatePaid.HasValue).Max(e => e.DatePaid!.Value) : null
-					});
-				}
-				return await Task.FromResult(results);
-			}
 			if (paymentMethodIds.Count == 0)
 				return Array.Empty<LastImportDatesForPaymentMethod>();
 			var dict = new Dictionary<int, (DateTime? LatestExpenseDate, DateTime? LatestDatePaid)>();
@@ -321,6 +226,7 @@ namespace MoneyManager.Data.Repositories
 				LatestDatePaid = dict[id].LatestDatePaid
 			}).ToList();
 		}
+
 		private async Task<DbExpense?> GetDb(int id, Guid userId)
 		{
 			var result = default(DbExpense?);
@@ -391,7 +297,6 @@ namespace MoneyManager.Data.Repositories
 				return scalar != null ? Convert.ToInt32(scalar) : 0;
 			}
 
-			// Optimistic concurrency: only update if ModifiedDate matches
 			var updateSql = @"UPDATE Expenses 
 				SET ExpenseDate = @ExpenseDate, Expense = @Expense, Amount = @Amount, Currency = @Currency,
 					PaymentMethod = @PaymentMethod, Category = @Category, DatePaid = @DatePaid, 
@@ -447,25 +352,6 @@ namespace MoneyManager.Data.Repositories
 
 			var rowsAffected = await _db.ExecuteNonQuery(sql, parameters);
 			return rowsAffected > 0;
-		}
-
-		/// <summary>
-		/// SqlDataReader reports <see cref="DateTime.Kind"/> Unspecified for <c>datetime2</c>; we store UTC (<see cref="INowProvider.UtcNow"/>).
-		/// Align to whole milliseconds so API round-trips (e.g. JSON with 3 fractional digits) match DB values that keep higher precision.
-		/// </summary>
-		private static bool ModifiedUtcMillisEqual(DateTime fromDbUnspecifiedUtcWallClock, DateTime fromClientUtcOrUnspecified)
-		{
-			var a = NormalizeModifiedUtcTicks(fromDbUnspecifiedUtcWallClock);
-			var b = NormalizeModifiedUtcTicks(fromClientUtcOrUnspecified);
-			return a == b;
-		}
-
-		private static long NormalizeModifiedUtcTicks(DateTime value)
-		{
-			var utcWall =
-				value.Kind == DateTimeKind.Unspecified ? DateTime.SpecifyKind(value, DateTimeKind.Utc) : value.ToUniversalTime();
-			var ticks = utcWall.Ticks - (utcWall.Ticks % TimeSpan.TicksPerMillisecond);
-			return ticks;
 		}
 	}
 }

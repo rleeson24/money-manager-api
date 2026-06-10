@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using Microsoft.Extensions.Configuration;
 using MoneyManager.Core.Constants;
+using MoneyManager.Data.Bootstrap;
 
 namespace MoneyManager.API.Utilities
 {
@@ -30,7 +31,7 @@ namespace MoneyManager.API.Utilities
 				return userId;
 
 			// Dev-only fallback when running under Aspire without an Azure AD token
-			if (user.Identity?.IsAuthenticated != true && IsAspireOrchestrated())
+			if (user.Identity?.IsAuthenticated != true && AspireOrchestrationDetector.IsRunningUnderAspire(_configuration))
 			{
 				var seed = _configuration["Data:AspireSeedUserId"] ?? AspireConstants.DefaultSeedUserId;
 				if (Guid.TryParse(seed, out var aspireSeed))
@@ -40,9 +41,5 @@ namespace MoneyManager.API.Utilities
 			return null;
 		}
 
-		private bool IsAspireOrchestrated() =>
-			_configuration.GetValue("Data:AspireOrchestrated", false)
-			|| !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("DOTNET_RESOURCE_SERVICE_ENDPOINT_URL"))
-			|| !string.IsNullOrEmpty(_configuration["DOTNET_RESOURCE_SERVICE_ENDPOINT_URL"]);
 	}
 }

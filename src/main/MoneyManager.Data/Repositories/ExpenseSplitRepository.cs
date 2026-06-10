@@ -7,8 +7,6 @@ using MoneyManager.Data.Mappers;
 using MoneyManager.Data.Models;
 using MoneyManager.Data.Utilities;
 using Microsoft.Data.SqlClient;
-using Microsoft.Extensions.Options;
-using DataOptions = MoneyManager.Data.DataOptions;
 
 namespace MoneyManager.Data.Repositories
 {
@@ -16,24 +14,15 @@ namespace MoneyManager.Data.Repositories
 	{
 		private readonly DbExecutor _db;
 		private readonly IExpenseSplitMapper _mapper;
-		private readonly DataOptions _dataOptions;
 
-		public ExpenseSplitRepository(DbExecutor db, IExpenseSplitMapper mapper, IOptions<DataOptions> dataOptions)
+		public ExpenseSplitRepository(DbExecutor db, IExpenseSplitMapper mapper)
 		{
 			_db = db;
 			_mapper = mapper;
-			_dataOptions = dataOptions.Value;
 		}
 
-		public Task<IReadOnlyList<ExpenseSplit>> GetByExpenseId(int expense_I, Guid userId)
-		{
-			if (_dataOptions.UseMockData)
-			{
-				var list = MockData.ExpenseSplits.Where(s => s.Expense_I == expense_I).ToList();
-				return Task.FromResult<IReadOnlyList<ExpenseSplit>>(list);
-			}
-			return GetByExpenseIdFromDb(expense_I, userId);
-		}
+		public Task<IReadOnlyList<ExpenseSplit>> GetByExpenseId(int expense_I, Guid userId) =>
+			GetByExpenseIdFromDb(expense_I, userId);
 
 		private async Task<IReadOnlyList<ExpenseSplit>> GetByExpenseIdFromDb(int expense_I, Guid userId)
 		{
@@ -54,11 +43,6 @@ namespace MoneyManager.Data.Repositories
 
 		public async Task<ExpenseSplit?> Get(int id, Guid userId)
 		{
-			if (_dataOptions.UseMockData)
-			{
-				var found = MockData.ExpenseSplits.FirstOrDefault(s => s.Id == id);
-				return found;
-			}
 			var result = default(DbExpenseSplit?);
 			await _db.ExecuteReader(
 				"SELECT * FROM Expenses_split WHERE Id = @Id AND UserId = @UserId",
@@ -73,22 +57,6 @@ namespace MoneyManager.Data.Repositories
 
 		public async Task<ExpenseSplit?> Create(Guid userId, CreateOrUpdateExpenseSplitModel model)
 		{
-			if (_dataOptions.UseMockData)
-			{
-				var list = MockData.ExpenseSplits;
-				var nextId = list.Count > 0 ? list.Max(s => s.Id) + 1 : 1;
-				var split = new ExpenseSplit
-				{
-					Id = nextId,
-					Expense_I = model.Expense_I,
-					Description = model.Description,
-					Amount = model.Amount,
-					Category = model.Category,
-					CreatedDateTime = DateTime.UtcNow
-				};
-				list.Add(split);
-				return await Task.FromResult(split);
-			}
 			var sql = @"INSERT INTO Expenses_split (Expense_I, UserId, Description, Amount, Category, CreatedDateTime)
 				VALUES (@Expense_I, @UserId, @Description, @Amount, @Category, GETUTCDATE());
 				SELECT CAST(SCOPE_IDENTITY() AS INT);";
@@ -105,20 +73,6 @@ namespace MoneyManager.Data.Repositories
 
 		public async Task<ExpenseSplit?> Update(int id, Guid userId, CreateOrUpdateExpenseSplitModel model)
 		{
-			if (_dataOptions.UseMockData)
-			{
-				var existing = MockData.ExpenseSplits.FirstOrDefault(s => s.Id == id);
-				if (existing == null) return null;
-				return await Task.FromResult(new ExpenseSplit
-				{
-					Id = existing.Id,
-					Expense_I = model.Expense_I,
-					Description = model.Description,
-					Amount = model.Amount,
-					Category = model.Category,
-					CreatedDateTime = existing.CreatedDateTime
-				});
-			}
 			var rows = await _db.ExecuteNonQuery(
 				@"UPDATE Expenses_split SET Description = @Description, Amount = @Amount, Category = @Category
 					WHERE Id = @Id AND UserId = @UserId",
@@ -134,9 +88,6 @@ namespace MoneyManager.Data.Repositories
 
 		public async Task<bool> Delete(int id, Guid userId)
 		{
-			if (_dataOptions.UseMockData)
-				return await Task.FromResult(MockData.ExpenseSplits.Any(s => s.Id == id));
-
 			var rows = await _db.ExecuteNonQuery(
 				"DELETE FROM Expenses_split WHERE Id = @Id AND UserId = @UserId",
 				[new SqlParameter("@Id", id), new SqlParameter("@UserId", userId)]);
@@ -148,27 +99,6 @@ namespace MoneyManager.Data.Repositories
 			var sum = items.Aggregate(0m, (a, i) => a + i.Amount);
 			if (Math.Abs(sum - parentAmount) > 0.005m)
 				return ReplaceSplitsResult.Failure("Split amounts must add up to the expense total.");
-
-			if (_dataOptions.UseMockData)
-			{
-				var list = MockData.ExpenseSplits;
-				list.RemoveAll(s => s.Expense_I == expense_I);
-				var nextId = list.Count > 0 ? list.Max(s => s.Id) + 1 : 1;
-				foreach (var item in items)
-				{
-					list.Add(new ExpenseSplit
-					{
-						Id = nextId++,
-						Expense_I = expense_I,
-						Description = item.Description,
-						Amount = item.Amount,
-						Category = item.Category,
-						CreatedDateTime = DateTime.UtcNow
-					});
-				}
-				var created = list.Where(s => s.Expense_I == expense_I).ToList();
-				return await Task.FromResult(ReplaceSplitsResult.Success(created));
-			}
 
 			await _db.ExecuteNonQuery(
 				"DELETE FROM Expenses_split WHERE Expense_I = @Expense_I AND UserId = @UserId",

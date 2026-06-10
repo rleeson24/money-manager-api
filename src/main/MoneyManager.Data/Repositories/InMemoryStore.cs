@@ -6,26 +6,33 @@ using MoneyManager.Core.Models;
 using MoneyManager.Core.Models.Input;
 using MoneyManager.Core.Repositories;
 using MoneyManager.Core.Utilities;
+using Microsoft.Extensions.Options;
 
 namespace MoneyManager.Data.Repositories
 {
 	/// <summary>
 	/// In-memory mutable store for development. Seeded from MockData; all mutations are process-local.
-	/// Thread-safe for concurrent requests.
+	/// Thread-safe for concurrent requests. Expenses are scoped by user id (parity with SQL repositories).
 	/// </summary>
 	public class InMemoryStore
 	{
 		private readonly object _lock = new();
 		private readonly List<Expense> _expenses;
+		private readonly Dictionary<int, Guid> _expenseOwners;
 		private readonly List<ExpenseSplit> _expenseSplits;
 		private readonly List<Category> _categories;
 		private int _nextExpenseId;
 		private int _nextSplitId;
 		private int _nextCategoryId;
 
-		public InMemoryStore()
+		public InMemoryStore(IOptions<DataOptions> dataOptions)
 		{
+			var seedUserId = ResolveSeedUserId(dataOptions.Value.AspireSeedUserId);
 			_expenses = new List<Expense>(MockData.Expenses);
+			_expenseOwners = new Dictionary<int, Guid>();
+			foreach (var e in _expenses)
+				_expenseOwners[e.Expense_I] = seedUserId;
+
 			_categories = LegacyCategorySeed.Categories.Select(c => new Category
 			{
 				Category_I = c.Category_I,
@@ -50,6 +57,9 @@ namespace MoneyManager.Data.Repositories
 					_nextSplitId = s.Id + 1;
 			}
 		}
+
+		private static Guid ResolveSeedUserId(string? configured) =>
+			Guid.TryParse(configured, out var parsed) ? parsed : Guid.Parse(AspireConstants.DefaultSeedUserId);
 
 		public IReadOnlyList<Category> GetCategories()
 		{
@@ -130,23 +140,33 @@ namespace MoneyManager.Data.Repositories
 
 		public IReadOnlyList<PaymentMethod> PaymentMethods => MockData.PaymentMethods;
 
-		public IReadOnlyList<Expense> GetExpenses()
+		public IReadOnlyList<Expense> GetExpensesForUser(Guid userId)
 		{
 			lock (_lock)
-				return _expenses.ToList();
+				return _expenses.Where(e => IsOwnedBy(e.Expense_I, userId)).ToList();
 		}
 
-		public Expense? GetExpenseById(int id)
-		{
-			lock (_lock)
-				return _expenses.Find(e => e.Expense_I == id);
-		}
-
-		public List<Expense> GetExpensesFiltered(string? month, int? paymentMethod, bool? datePaidNull, string? currency = null)
+		public Expense? GetExpenseById(int id, Guid userId)
 		{
 			lock (_lock)
 			{
-				var list = _expenses.AsEnumerable();
+				if (!IsOwnedBy(id, userId))
+					return null;
+				return _expenses.Find(e => e.Expense_I == id);
+			}
+		}
+
+		public bool ExpenseOwnedBy(int expenseId, Guid userId)
+		{
+			lock (_lock)
+				return IsOwnedBy(expenseId, userId);
+		}
+
+		public List<Expense> GetExpensesFiltered(Guid userId, string? month, int? paymentMethod, bool? datePaidNull, string? currency = null)
+		{
+			lock (_lock)
+			{
+				var list = _expenses.Where(e => IsOwnedBy(e.Expense_I, userId));
 				if (!string.IsNullOrEmpty(month))
 					list = list.Where(e => e.ExpenseDate.ToString("yyyy-MM") == month);
 				if (paymentMethod.HasValue)
@@ -159,7 +179,7 @@ namespace MoneyManager.Data.Repositories
 			}
 		}
 
-		public Expense AddExpense(Expense expense)
+		public Expense AddExpense(Guid userId, Expense expense)
 		{
 			lock (_lock)
 			{
@@ -168,6 +188,7 @@ namespace MoneyManager.Data.Repositories
 				{
 					id = expense.Expense_I;
 					_expenses.Add(expense);
+					_expenseOwners[id] = userId;
 					return expense;
 				}
 				id = _nextExpenseId++;
@@ -187,14 +208,17 @@ namespace MoneyManager.Data.Repositories
 					CreatedBy = expense.CreatedBy
 				};
 				_expenses.Add(added);
+				_expenseOwners[id] = userId;
 				return added;
 			}
 		}
 
-		public bool UpdateExpense(int id, Expense expense)
+		public bool UpdateExpense(int id, Guid userId, Expense expense)
 		{
 			lock (_lock)
 			{
+				if (!IsOwnedBy(id, userId))
+					return false;
 				var idx = _expenses.FindIndex(e => e.Expense_I == id);
 				if (idx < 0) return false;
 				_expenses[idx] = expense;
@@ -202,35 +226,42 @@ namespace MoneyManager.Data.Repositories
 			}
 		}
 
-		public bool RemoveExpense(int id)
+		public bool RemoveExpense(int id, Guid userId)
 		{
 			lock (_lock)
 			{
+				if (!IsOwnedBy(id, userId))
+					return false;
 				var idx = _expenses.FindIndex(e => e.Expense_I == id);
 				if (idx < 0) return false;
 				_expenses.RemoveAt(idx);
+				_expenseOwners.Remove(id);
 				_expenseSplits.RemoveAll(s => s.Expense_I == id);
 				return true;
 			}
 		}
 
-		public int RemoveExpenses(IEnumerable<int> ids)
+		public int RemoveExpenses(IEnumerable<int> ids, Guid userId)
 		{
 			var idSet = ids.ToHashSet();
 			lock (_lock)
 			{
-				var removed = _expenses.RemoveAll(e => idSet.Contains(e.Expense_I));
-				_expenseSplits.RemoveAll(s => idSet.Contains(s.Expense_I));
+				var ownedIds = idSet.Where(id => IsOwnedBy(id, userId)).ToHashSet();
+				var removed = _expenses.RemoveAll(e => ownedIds.Contains(e.Expense_I));
+				foreach (var id in ownedIds)
+					_expenseOwners.Remove(id);
+				_expenseSplits.RemoveAll(s => ownedIds.Contains(s.Expense_I));
 				return removed;
 			}
 		}
 
-		public int UpdateExpenses(IEnumerable<int> ids, Action<Expense> update)
+		public int UpdateExpenses(IEnumerable<int> ids, Guid userId, Action<Expense> update)
 		{
 			lock (_lock)
 			{
+				var idSet = ids.ToHashSet();
 				var count = 0;
-				foreach (var e in _expenses.Where(e => ids.Contains(e.Expense_I)))
+				foreach (var e in _expenses.Where(e => idSet.Contains(e.Expense_I) && IsOwnedBy(e.Expense_I, userId)))
 				{
 					update(e);
 					count++;
@@ -239,27 +270,38 @@ namespace MoneyManager.Data.Repositories
 			}
 		}
 
-		public IReadOnlyList<ExpenseSplit> GetSplitsByExpenseId(int expense_I)
-		{
-			lock (_lock)
-				return _expenseSplits.Where(s => s.Expense_I == expense_I).OrderBy(s => s.Id).ToList();
-		}
-
-		public ExpenseSplit? GetSplitById(int id)
-		{
-			lock (_lock)
-				return _expenseSplits.FirstOrDefault(s => s.Id == id);
-		}
-
-		public ExpenseSplit AddSplit(ExpenseSplit split)
+		public IReadOnlyList<ExpenseSplit> GetSplitsByExpenseId(int expense_I, Guid userId)
 		{
 			lock (_lock)
 			{
+				if (!IsOwnedBy(expense_I, userId))
+					return Array.Empty<ExpenseSplit>();
+				return _expenseSplits.Where(s => s.Expense_I == expense_I).OrderBy(s => s.Id).ToList();
+			}
+		}
+
+		public ExpenseSplit? GetSplitById(int id, Guid userId)
+		{
+			lock (_lock)
+			{
+				var split = _expenseSplits.FirstOrDefault(s => s.Id == id);
+				if (split == null || !IsOwnedBy(split.Expense_I, userId))
+					return null;
+				return split;
+			}
+		}
+
+		public ExpenseSplit AddSplit(int expense_I, Guid userId, ExpenseSplit split)
+		{
+			lock (_lock)
+			{
+				if (!IsOwnedBy(expense_I, userId))
+					throw new InvalidOperationException("Cannot add split for expense not owned by user.");
 				var id = split.Id > 0 ? split.Id : _nextSplitId++;
 				var s = new ExpenseSplit
 				{
 					Id = id,
-					Expense_I = split.Expense_I,
+					Expense_I = expense_I,
 					Description = split.Description,
 					Amount = split.Amount,
 					Category = split.Category,
@@ -271,27 +313,42 @@ namespace MoneyManager.Data.Repositories
 			}
 		}
 
-		public bool UpdateSplit(int id, ExpenseSplit split)
+		public bool UpdateSplit(int id, Guid userId, ExpenseSplit split)
 		{
 			lock (_lock)
 			{
+				var existing = _expenseSplits.FirstOrDefault(s => s.Id == id);
+				if (existing == null || !IsOwnedBy(existing.Expense_I, userId))
+					return false;
 				var idx = _expenseSplits.FindIndex(s => s.Id == id);
-				if (idx < 0) return false;
 				_expenseSplits[idx] = split;
 				return true;
 			}
 		}
 
-		public bool RemoveSplit(int id)
+		public bool RemoveSplit(int id, Guid userId)
 		{
 			lock (_lock)
+			{
+				var existing = _expenseSplits.FirstOrDefault(s => s.Id == id);
+				if (existing == null || !IsOwnedBy(existing.Expense_I, userId))
+					return false;
 				return _expenseSplits.RemoveAll(s => s.Id == id) > 0;
+			}
 		}
 
-		public void RemoveSplitsByExpenseId(int expense_I)
+		public bool RemoveSplitsByExpenseId(int expense_I, Guid userId)
 		{
 			lock (_lock)
+			{
+				if (!IsOwnedBy(expense_I, userId))
+					return false;
 				_expenseSplits.RemoveAll(s => s.Expense_I == expense_I);
+				return true;
+			}
 		}
+
+		private bool IsOwnedBy(int expenseId, Guid userId) =>
+			_expenseOwners.TryGetValue(expenseId, out var owner) && owner == userId;
 	}
 }

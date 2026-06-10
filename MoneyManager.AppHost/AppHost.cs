@@ -6,7 +6,6 @@ var sql = builder.AddSqlServer("sql")
 
 builder.AddProject<Projects.MoneyManager_API>("moneymanager-api")
 	.WithReference(sql)
-	.WithEnvironment("Data__UseMockData", "false")
 	.WithEnvironment("Data__AspireOrchestrated", "true");
 
 #pragma warning disable ASPIRECERTIFICATES001 // Type is for evaluation purposes only and is subject to change or removal in future updates. Suppress this diagnostic to proceed.
