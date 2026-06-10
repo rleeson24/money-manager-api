@@ -2,7 +2,7 @@ using Microsoft.Extensions.Configuration;
 
 namespace MoneyManager.Data.Bootstrap;
 
-internal static class AspireOrchestrationDetector
+public static class AspireOrchestrationDetector
 {
 	public static bool IsRunningUnderAspire(IConfiguration configuration) =>
 		configuration.GetValue("Data:AspireOrchestrated", false)

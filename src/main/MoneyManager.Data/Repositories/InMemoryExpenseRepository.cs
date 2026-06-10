@@ -22,17 +22,17 @@ namespace MoneyManager.Data.Repositories
 		}
 
 		public Task<Expense?> Get(int id, Guid userId) =>
-			Task.FromResult(_store.GetExpenseById(id));
+			Task.FromResult(_store.GetExpenseById(id, userId));
 
 		public Task<IReadOnlyList<Expense>> ListForUser(Guid userId, string? month = null)
 		{
-			var list = _store.GetExpensesFiltered(month, null, null);
+			var list = _store.GetExpensesFiltered(userId, month, null, null);
 			return Task.FromResult<IReadOnlyList<Expense>>(list);
 		}
 
 		public Task<IReadOnlyList<Expense>> ListForUserWithFilters(Guid userId, int? paymentMethod = null, bool? datePaidNull = null, string? currency = null)
 		{
-			var list = _store.GetExpensesFiltered(null, paymentMethod, datePaidNull, currency);
+			var list = _store.GetExpensesFiltered(userId, null, paymentMethod, datePaidNull, currency);
 			return Task.FromResult<IReadOnlyList<Expense>>(list);
 		}
 
@@ -55,15 +55,15 @@ namespace MoneyManager.Data.Repositories
 				ExcludeFromCredit = model.ExcludeFromCredit,
 				CreatedBy = model.CreatedBy ?? userId.ToString()
 			};
-			var added = _store.AddExpense(expense);
+			var added = _store.AddExpense(userId, expense);
 			return Task.FromResult<Expense?>(added);
 		}
 
 		public Task<UpdateExpenseResult> Update(int id, Guid userId, Expense expense)
 		{
-			var existing = _store.GetExpenseById(id);
+			var existing = _store.GetExpenseById(id, userId);
 			if (existing == null) return Task.FromResult(UpdateExpenseResult.NotFound());
-			if (existing.ModifiedDateTime != expense.ModifiedDateTime)
+			if (!ExpenseConcurrency.ModifiedUtcMillisEqual(existing.ModifiedDateTime, expense.ModifiedDateTime))
 				return Task.FromResult(UpdateExpenseResult.Conflict(existing));
 			var toSave = new Expense
 			{
@@ -81,31 +81,33 @@ namespace MoneyManager.Data.Repositories
 				ExcludeFromCredit = expense.ExcludeFromCredit,
 				CreatedBy = existing.CreatedBy
 			};
-			if (!_store.UpdateExpense(id, toSave))
+			if (!_store.UpdateExpense(id, userId, toSave))
 				return Task.FromResult(UpdateExpenseResult.NotFound());
 			return Task.FromResult(UpdateExpenseResult.Success(toSave));
 		}
 
 		public Task<UpdateExpenseResult> Patch(int id, Guid userId, Dictionary<string, object?> updates, DateTime? expectedModifiedDateTime)
 		{
-			var current = _store.GetExpenseById(id);
+			var current = _store.GetExpenseById(id, userId);
 			if (current == null) return Task.FromResult(UpdateExpenseResult.NotFound());
-			if (expectedModifiedDateTime.HasValue && current.ModifiedDateTime != expectedModifiedDateTime.Value)
+			if (expectedModifiedDateTime.HasValue
+				&& !ExpenseConcurrency.ModifiedUtcMillisEqual(current.ModifiedDateTime, expectedModifiedDateTime.Value))
 				return Task.FromResult(UpdateExpenseResult.Conflict(current));
 			var patched = ExpensePatchApplicator.Apply(current, updates, _nowProvider.UtcNow);
-			_store.UpdateExpense(id, patched);
+			if (!_store.UpdateExpense(id, userId, patched))
+				return Task.FromResult(UpdateExpenseResult.NotFound());
 			return Task.FromResult(UpdateExpenseResult.Success(patched));
 		}
 
 		public Task<bool> Delete(int id, Guid userId) =>
-			Task.FromResult(_store.RemoveExpense(id));
+			Task.FromResult(_store.RemoveExpense(id, userId));
 
 		public Task<bool> BulkUpdate(IEnumerable<int> ids, Guid userId, Dictionary<string, object?> updates)
 		{
 			var idList = ids.ToList();
 			if (idList.Count == 0 || updates.Count == 0) return Task.FromResult(false);
 			var now = _nowProvider.UtcNow;
-			var count = _store.UpdateExpenses(idList, e =>
+			var count = _store.UpdateExpenses(idList, userId, e =>
 				ExpensePatchApplicator.ApplyTo(e, updates, now));
 			return Task.FromResult(count > 0);
 		}
@@ -114,13 +116,13 @@ namespace MoneyManager.Data.Repositories
 		{
 			var idList = ids.ToList();
 			if (idList.Count == 0) return Task.FromResult(false);
-			var removed = _store.RemoveExpenses(idList);
+			var removed = _store.RemoveExpenses(idList, userId);
 			return Task.FromResult(removed > 0);
 		}
 
 		public Task<IReadOnlyList<Expense>> ListForUserInDateRange(Guid userId, DateTime fromDate, DateTime toDate, int? paymentMethodId = null)
 		{
-			var all = _store.GetExpensesFiltered(null, null, null);
+			var all = _store.GetExpensesFiltered(userId, null, null, null);
 			var list = all
 				.Where(e => e.ExpenseDate.Date >= fromDate.Date && e.ExpenseDate.Date <= toDate.Date)
 				.Where(e => !paymentMethodId.HasValue || e.PaymentMethod == paymentMethodId.Value)
@@ -131,7 +133,7 @@ namespace MoneyManager.Data.Repositories
 
 		public Task<IReadOnlyList<LastImportDatesForPaymentMethod>> GetLastImportDates(Guid userId, IReadOnlyList<int> paymentMethodIds)
 		{
-			var all = _store.GetExpensesFiltered(null, null, null);
+			var all = _store.GetExpensesFiltered(userId, null, null, null);
 			var results = new List<LastImportDatesForPaymentMethod>();
 			foreach (var pmId in paymentMethodIds)
 			{

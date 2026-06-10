@@ -8,8 +8,6 @@ using MoneyManager.Data.Mappers;
 using MoneyManager.Data.Models;
 using MoneyManager.Data.Utilities;
 using Microsoft.Data.SqlClient;
-using Microsoft.Extensions.Options;
-using DataOptions = MoneyManager.Data.DataOptions;
 
 namespace MoneyManager.Data.Repositories
 {
@@ -17,36 +15,18 @@ namespace MoneyManager.Data.Repositories
 	{
 		private readonly DbExecutor _db;
 		private readonly ICategoryMapper _readerMapper;
-		private readonly DataOptions _dataOptions;
 
-		public CategoryRepository(DbExecutor db, ICategoryMapper readerMapper, IOptions<DataOptions> dataOptions)
+		public CategoryRepository(DbExecutor db, ICategoryMapper readerMapper)
 		{
 			_db = db;
 			_readerMapper = readerMapper;
-			_dataOptions = dataOptions.Value;
 		}
 
-		public Task<IReadOnlyList<Category>> GetAll(bool activeOnly = false)
-		{
-			if (_dataOptions.UseMockData)
-			{
-				var list = LegacyCategorySeed.Categories.AsEnumerable();
-				if (activeOnly)
-					list = list.Where(c => !c.Archived);
-				return Task.FromResult(FinalizeList(list));
-			}
-
-			return GetAllFromDb(activeOnly);
-		}
+		public Task<IReadOnlyList<Category>> GetAll(bool activeOnly = false) =>
+			GetAllFromDb(activeOnly);
 
 		public async Task<Category?> GetById(int id)
 		{
-			if (_dataOptions.UseMockData)
-			{
-				var all = FinalizeList(LegacyCategorySeed.Categories);
-				return all.FirstOrDefault(c => c.Category_I == id);
-			}
-
 			var result = new List<DbCategory>();
 			await _db.ExecuteReader(
 				"SELECT * FROM Categories WHERE Category_I = @Id",
@@ -75,7 +55,7 @@ namespace MoneyManager.Data.Repositories
 				new SqlParameter("@Required", model.Required)
 			]);
 			if (scalar == null)
-				return CategoryMutationResult.NotFound();
+				return CategoryMutationResult.Error("Failed to create category.");
 
 			var id = Convert.ToInt32(scalar);
 			return CategoryMutationResult.Success((await GetById(id))!);

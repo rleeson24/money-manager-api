@@ -109,7 +109,7 @@ builder.Services.AddAuthorization(options =>
 
 services.AddScoped<IResolveUserId, ResolveUserId>();
 services.AddScoped<MoneyManager.API.Filters.RequireUserIdFilter>();
-services.AddCoreServices(builder.Configuration);
+services.AddCoreServices();
 services.AddDataServices(builder.Configuration);
 builder.Services.AddImportParsers();
 
