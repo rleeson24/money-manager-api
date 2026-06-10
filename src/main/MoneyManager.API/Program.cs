@@ -7,7 +7,6 @@ using MoneyManager.API.Middleware;
 using MoneyManager.API.Utilities;
 using FluentValidation;
 using MoneyManager.Core;
-using MoneyManager.Core.Application.PaymentMethods.Queries;
 using MoneyManager.Data;
 using MoneyManager.Import;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -109,6 +108,7 @@ builder.Services.AddAuthorization(options =>
 });
 
 services.AddScoped<IResolveUserId, ResolveUserId>();
+services.AddScoped<MoneyManager.API.Filters.RequireUserIdFilter>();
 services.AddCoreServices(builder.Configuration);
 services.AddDataServices(builder.Configuration);
 builder.Services.AddImportParsers();
@@ -201,12 +201,6 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapDefaultEndpoints();
-
-app.MapGet("/api/payment-methods", async (MediatR.IMediator mediator) =>
-{
-	var paymentMethods = await mediator.Send(new GetPaymentMethodsQuery());
-	return paymentMethods != null ? Results.Ok(paymentMethods) : Results.Problem();
-}).RequireAuthorization().WithTags("Payment Methods");
 
 app.MapControllers();
 

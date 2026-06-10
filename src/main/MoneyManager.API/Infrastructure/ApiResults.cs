@@ -40,6 +40,14 @@ namespace MoneyManager.API.Infrastructure
 			return new ConflictObjectResult(problem);
 		}
 
+		public static IActionResult Unauthorized(string detail = "User identity could not be resolved.") =>
+			new UnauthorizedObjectResult(new ProblemDetails
+			{
+				Status = StatusCodes.Status401Unauthorized,
+				Title = "Unauthorized",
+				Detail = detail
+			});
+
 		public static IActionResult UnexpectedFailure(string? detail = null) =>
 			new ObjectResult(new ProblemDetails
 			{

@@ -9,6 +9,9 @@ using MoneyManager.Core.Models.Input;
 
 namespace MoneyManager.API.Controllers
 {
+	/// <summary>
+	/// Categories are a global resource shared across users; endpoints intentionally omit <see cref="Filters.RequireUserIdAttribute"/>.
+	/// </summary>
 	[ApiController]
 	[Authorize(AuthenticationSchemes = AuthSchemes.Microsoft)]
 	[Route("api/categories")]
