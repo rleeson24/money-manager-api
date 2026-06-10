@@ -2,9 +2,11 @@ using System.Collections.Generic;
 using System.Linq;
 using MoneyManager.Core;
 using MoneyManager.Core.Constants;
+using MoneyManager.Core.Expenses;
 using MoneyManager.Core.Models;
 using MoneyManager.Core.Models.Input;
 using MoneyManager.Core.Repositories;
+using MoneyManager.Data.Expenses;
 using MoneyManager.Data.Mappers;
 using MoneyManager.Data.Models;
 using MoneyManager.Data.Utilities;
@@ -165,27 +167,12 @@ namespace MoneyManager.Data.Repositories
 			{
 				var current = MockData.Expenses.FirstOrDefault(e => e.Expense_I == id);
 				if (current == null) return UpdateExpenseResult.NotFound();
-				var patched = new Expense
-				{
-					Expense_I = current.Expense_I,
-					ExpenseDate = updates.TryGetValue("ExpenseDate", out var d) && d is DateTime dt ? dt : current.ExpenseDate,
-					ExpenseDescription = updates.TryGetValue("Expense", out var desc) && desc is string s ? s : current.ExpenseDescription,
-					Amount = updates.TryGetValue("Amount", out var a) && a is decimal amt ? amt : current.Amount,
-					Currency = updates.TryGetValue("Currency", out var cur) && cur is string curStr ? curStr : current.Currency,
-					PaymentMethod = updates.ContainsKey("PaymentMethod") ? (int?)updates["PaymentMethod"] : current.PaymentMethod,
-					Category = updates.ContainsKey("Category") ? (int?)updates["Category"] : current.Category,
-					DatePaid = updates.ContainsKey("DatePaid") ? (DateTime?)updates["DatePaid"] : current.DatePaid,
-					CreatedDateTime = current.CreatedDateTime,
-					ModifiedDateTime = _nowProvider.UtcNow,
-					IsSplit = updates.TryGetValue("IsSplit", out var isSplitObj) && isSplitObj is bool isSplitVal ? isSplitVal : current.IsSplit,
-					ExcludeFromCredit = updates.TryGetValue("ExcludeFromCredit", out var excludeObj) && excludeObj is bool excludeVal ? excludeVal : current.ExcludeFromCredit
-				};
+				var patched = ExpensePatchApplicator.Apply(current, updates, _nowProvider.UtcNow);
 				return await Task.FromResult(UpdateExpenseResult.Success(patched));
 			}
-			// Don't persist timestamp fields as column updates
 			var updatesCopy = new Dictionary<string, object?>(updates);
-			updatesCopy.Remove("ModifiedDateTime");
-			updatesCopy.Remove("CreatedDateTime");
+			updatesCopy.Remove(ExpenseFieldNames.ModifiedDateTime);
+			updatesCopy.Remove(ExpenseFieldNames.CreatedDateTime);
 			var success = await UpdateDb(id, userId, updatesCopy, expectedModifiedDateTime);
 			if (!success)
 			{
@@ -225,33 +212,7 @@ namespace MoneyManager.Data.Repositories
 				new SqlParameter("@UserId", userId)
 			};
 
-			if (updates.ContainsKey("ExpenseDate") && updates["ExpenseDate"] != null)
-			{
-				setClauses.Add("ExpenseDate = @ExpenseDate");
-				parameters.Add(new SqlParameter("@ExpenseDate", updates["ExpenseDate"]));
-			}
-			if (updates.ContainsKey("Category"))
-			{
-				if (updates["Category"] == null)
-					setClauses.Add("Category = NULL");
-				else
-				{
-					setClauses.Add("Category = @Category");
-					parameters.Add(new SqlParameter("@Category", updates["Category"]));
-				}
-			}
-			if (updates.ContainsKey("DatePaid"))
-			{
-				if (updates["DatePaid"] == null)
-					setClauses.Add("DatePaid = NULL");
-				else
-				{
-					setClauses.Add("DatePaid = @DatePaid");
-					parameters.Add(new SqlParameter("@DatePaid", updates["DatePaid"]));
-				}
-			}
-
-			if (!setClauses.Any())
+			if (!ExpensePatchDbUpdateBuilder.AppendBulkSetClauses(updates, setClauses, parameters))
 				return false;
 
 			setClauses.Add("ModifiedDate = @ModifiedDate");
@@ -470,68 +431,7 @@ namespace MoneyManager.Data.Repositories
 				new SqlParameter("@UserId", userId)
 			};
 
-			if (updates.ContainsKey("ExpenseDate") && updates["ExpenseDate"] != null)
-			{
-				setClauses.Add("ExpenseDate = @ExpenseDate");
-				parameters.Add(new SqlParameter("@ExpenseDate", updates["ExpenseDate"]));
-			}
-			if (updates.ContainsKey("Expense") && updates["Expense"] != null)
-			{
-				setClauses.Add("Expense = @Expense");
-				parameters.Add(new SqlParameter("@Expense", updates["Expense"]));
-			}
-			if (updates.ContainsKey("Amount") && updates["Amount"] != null)
-			{
-				setClauses.Add("Amount = @Amount");
-				parameters.Add(new SqlParameter("@Amount", updates["Amount"]));
-			}
-			if (updates.ContainsKey("Currency") && updates["Currency"] != null)
-			{
-				setClauses.Add("Currency = @Currency");
-				parameters.Add(new SqlParameter("@Currency", updates["Currency"]));
-			}
-			if (updates.ContainsKey("PaymentMethod"))
-			{
-				if (updates["PaymentMethod"] == null)
-					setClauses.Add("PaymentMethod = NULL");
-				else
-				{
-					setClauses.Add("PaymentMethod = @PaymentMethod");
-					parameters.Add(new SqlParameter("@PaymentMethod", updates["PaymentMethod"]));
-				}
-			}
-			if (updates.ContainsKey("Category"))
-			{
-				if (updates["Category"] == null)
-					setClauses.Add("Category = NULL");
-				else
-				{
-					setClauses.Add("Category = @Category");
-					parameters.Add(new SqlParameter("@Category", updates["Category"]));
-				}
-			}
-			if (updates.ContainsKey("DatePaid"))
-			{
-				if (updates["DatePaid"] == null)
-					setClauses.Add("DatePaid = NULL");
-				else
-				{
-					setClauses.Add("DatePaid = @DatePaid");
-					parameters.Add(new SqlParameter("@DatePaid", updates["DatePaid"]));
-				}
-			}
-			if (updates.ContainsKey("IsSplit"))
-			{
-				setClauses.Add("IsSplit = @IsSplit");
-				parameters.Add(new SqlParameter("@IsSplit", updates["IsSplit"] is bool b && b));
-			}
-			if (updates.ContainsKey("ExcludeFromCredit"))
-			{
-				setClauses.Add("ExcludeFromCredit = @ExcludeFromCredit");
-				parameters.Add(new SqlParameter("@ExcludeFromCredit", updates["ExcludeFromCredit"] is bool exclude && exclude));
-			}
-
-			if (!setClauses.Any())
+			if (!ExpensePatchDbUpdateBuilder.AppendPatchSetClauses(updates, setClauses, parameters))
 				return false;
 
 			setClauses.Add("ModifiedDate = @ModifiedDate");
