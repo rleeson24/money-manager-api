@@ -4,6 +4,7 @@ using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MoneyManager.API.Configuration;
+using MoneyManager.API.Infrastructure;
 using MoneyManager.API.Utilities;
 using MoneyManager.Core.Application.ExpenseSplits.Commands;
 using MoneyManager.Core.Application.ExpenseSplits.Queries;
@@ -56,9 +57,7 @@ namespace MoneyManager.API.Controllers
 				new GetExpensesQuery(userId, month, paymentMethod, datePaidNull, currency),
 				cancellationToken);
 
-			if (expenses != null)
-				return Ok(expenses);
-			return Problem();
+			return Ok(expenses);
 		}
 
 		[HttpGet("{id}")]
@@ -70,7 +69,7 @@ namespace MoneyManager.API.Controllers
 			var expense = await _mediator.Send(new GetExpenseQuery(id, userId), cancellationToken);
 			if (expense != null)
 				return Ok(expense);
-			return NotFound();
+			return ApiResults.NotFound("Expense not found.");
 		}
 
 		[HttpPost]
@@ -82,7 +81,7 @@ namespace MoneyManager.API.Controllers
 			var expense = await _mediator.Send(new CreateExpenseCommand(userId, model), cancellationToken);
 			if (expense != null)
 				return CreatedAtAction(nameof(GetExpense), new { id = expense.Expense_I }, expense);
-			return Problem();
+			return ApiResults.UnexpectedFailure();
 		}
 
 		[HttpPut("{id}")]
@@ -95,8 +94,8 @@ namespace MoneyManager.API.Controllers
 			if (result.IsSuccess)
 				return Ok(result.Updated);
 			if (result.IsConflict)
-				return Conflict(result.ConflictCurrent);
-			return NotFound();
+				return ApiResults.Conflict("The expense was modified by another request.", result.ConflictCurrent);
+			return ApiResults.NotFound("Expense not found.");
 		}
 
 		[HttpPatch("{id}")]
@@ -165,8 +164,8 @@ namespace MoneyManager.API.Controllers
 			if (result.IsSuccess)
 				return Ok(result.Updated);
 			if (result.IsConflict)
-				return Conflict(result.ConflictCurrent);
-			return NotFound();
+				return ApiResults.Conflict("The expense was modified by another request.", result.ConflictCurrent);
+			return ApiResults.NotFound("Expense not found.");
 		}
 
 		private static DateTime? ParseDateTimeFromElement(JsonElement value)
@@ -190,7 +189,7 @@ namespace MoneyManager.API.Controllers
 			var success = await _mediator.Send(new DeleteExpenseCommand(id, userId), cancellationToken);
 			if (success)
 				return Ok();
-			return NotFound();
+			return ApiResults.NotFound("Expense not found.");
 		}
 
 		[HttpPatch("bulk")]
@@ -216,7 +215,7 @@ namespace MoneyManager.API.Controllers
 				cancellationToken);
 			if (success)
 				return Ok();
-			return Problem();
+			return ApiResults.UnexpectedFailure();
 		}
 
 		[HttpGet("split")]
@@ -236,7 +235,7 @@ namespace MoneyManager.API.Controllers
 			var split = await _mediator.Send(new CreateExpenseSplitCommand(userId, model), cancellationToken);
 			if (split != null)
 				return CreatedAtAction(nameof(GetExpenseSplits), new { expenseId = model.Expense_I }, split);
-			return BadRequest();
+			return ApiResults.NotFound("Expense not found.");
 		}
 
 		[HttpPut("split/{id}")]
@@ -247,7 +246,7 @@ namespace MoneyManager.API.Controllers
 			var split = await _mediator.Send(new UpdateExpenseSplitCommand(id, userId, model), cancellationToken);
 			if (split != null)
 				return Ok(split);
-			return NotFound();
+			return ApiResults.NotFound("Expense split not found.");
 		}
 
 		[HttpDelete("split/{id}")]
@@ -258,7 +257,7 @@ namespace MoneyManager.API.Controllers
 			var success = await _mediator.Send(new DeleteExpenseSplitCommand(id, userId), cancellationToken);
 			if (success)
 				return NoContent();
-			return NotFound();
+			return ApiResults.NotFound("Expense split not found.");
 		}
 
 		[HttpPut("split/replace")]
@@ -272,7 +271,9 @@ namespace MoneyManager.API.Controllers
 			var result = await _mediator.Send(new ReplaceExpenseSplitsCommand(expenseId, userId, request), cancellationToken);
 			if (result.IsSuccess)
 				return Ok(result.Splits);
-			return BadRequest(new { error = result.ValidationError });
+			if (result.ValidationError == "Expense not found.")
+				return ApiResults.NotFound(result.ValidationError);
+			return ApiResults.ValidationError(result.ValidationError ?? "Replace splits failed.");
 		}
 
 		[HttpDelete("bulk")]
@@ -284,7 +285,7 @@ namespace MoneyManager.API.Controllers
 			var success = await _mediator.Send(new BulkDeleteExpensesCommand(request.Ids, userId), cancellationToken);
 			if (success)
 				return Ok();
-			return Problem();
+			return ApiResults.UnexpectedFailure();
 		}
 	}
 
