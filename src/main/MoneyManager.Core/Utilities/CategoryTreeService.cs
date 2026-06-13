@@ -2,14 +2,9 @@ using MoneyManager.Core.Models;
 
 namespace MoneyManager.Core.Utilities
 {
-	public static class CategoryConstants
+	public class CategoryTreeService : ICategoryTreeService
 	{
-		public const int SplitCategoryId = 19;
-	}
-
-	public static class CategoryTreeHelper
-	{
-		public static IReadOnlyList<Category> WithHasChildren(IReadOnlyList<Category> categories)
+		public IReadOnlyList<Category> WithHasChildren(IReadOnlyList<Category> categories)
 		{
 			var parentIds = categories
 				.Where(c => c.ParentCategory_I.HasValue)
@@ -23,7 +18,7 @@ namespace MoneyManager.Core.Utilities
 			}).ToList();
 		}
 
-		public static IReadOnlyList<Category> SortForDisplay(IReadOnlyList<Category> categories)
+		public IReadOnlyList<Category> SortForDisplay(IReadOnlyList<Category> categories)
 		{
 			var byId = categories.ToDictionary(c => c.Category_I);
 			string SortKey(Category c)
@@ -35,5 +30,8 @@ namespace MoneyManager.Core.Utilities
 
 			return categories.OrderBy(SortKey, StringComparer.OrdinalIgnoreCase).ToList();
 		}
+
+		public IReadOnlyList<Category> PrepareForDisplay(IReadOnlyList<Category> categories) =>
+			WithHasChildren(SortForDisplay(categories));
 	}
 }

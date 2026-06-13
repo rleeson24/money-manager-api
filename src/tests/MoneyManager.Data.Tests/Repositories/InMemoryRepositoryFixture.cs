@@ -2,6 +2,8 @@ using Microsoft.Extensions.Options;
 using Moq;
 using MoneyManager.Core;
 using MoneyManager.Core.Constants;
+using MoneyManager.Core.Expenses;
+using MoneyManager.Core.Utilities;
 using MoneyManager.Data;
 using MoneyManager.Data.Repositories;
 
@@ -15,13 +17,16 @@ public class InMemoryRepositoryFixture
 
 	public Guid OtherUserId { get; } = Guid.Parse("22222222-2222-2222-2222-222222222222");
 
+	private readonly ICategoryTreeService _categoryTreeService = new CategoryTreeService();
+	private readonly IExpensePatchApplicator _patchApplicator = new ExpensePatchApplicator();
+
 	public InMemoryStore CreateStore(string? aspireSeedUserId = null)
 	{
 		var options = Options.Create(new DataOptions
 		{
 			AspireSeedUserId = aspireSeedUserId ?? SeedUserId.ToString()
 		});
-		return new InMemoryStore(options);
+		return new InMemoryStore(options, _categoryTreeService);
 	}
 
 	public Mock<INowProvider> CreateNowProviderMock(DateTime? utcNow = null)
@@ -35,7 +40,7 @@ public class InMemoryRepositoryFixture
 		CreateNowProviderMock(utcNow).Object;
 
 	public InMemoryExpenseRepository CreateExpenseRepository(InMemoryStore? store = null, INowProvider? nowProvider = null) =>
-		new(store ?? CreateStore(), nowProvider ?? CreateNowProvider());
+		new(store ?? CreateStore(), nowProvider ?? CreateNowProvider(), _patchApplicator);
 
 	public InMemoryCategoryRepository CreateCategoryRepository(InMemoryStore? store = null) =>
 		new(store ?? CreateStore());

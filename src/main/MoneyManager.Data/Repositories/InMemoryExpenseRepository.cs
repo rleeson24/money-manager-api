@@ -14,11 +14,16 @@ namespace MoneyManager.Data.Repositories
 	{
 		private readonly InMemoryStore _store;
 		private readonly INowProvider _nowProvider;
+		private readonly IExpensePatchApplicator _patchApplicator;
 
-		public InMemoryExpenseRepository(InMemoryStore store, INowProvider nowProvider)
+		public InMemoryExpenseRepository(
+			InMemoryStore store,
+			INowProvider nowProvider,
+			IExpensePatchApplicator patchApplicator)
 		{
 			_store = store;
 			_nowProvider = nowProvider;
+			_patchApplicator = patchApplicator;
 		}
 
 		public Task<Expense?> Get(int id, Guid userId) =>
@@ -93,7 +98,7 @@ namespace MoneyManager.Data.Repositories
 			if (expectedModifiedDateTime.HasValue
 				&& !ExpenseConcurrency.ModifiedUtcMillisEqual(current.ModifiedDateTime, expectedModifiedDateTime.Value))
 				return Task.FromResult(UpdateExpenseResult.Conflict(current));
-			var patched = ExpensePatchApplicator.Apply(current, updates, _nowProvider.UtcNow);
+			var patched = _patchApplicator.Apply(current, updates, _nowProvider.UtcNow);
 			if (!_store.UpdateExpense(id, userId, patched))
 				return Task.FromResult(UpdateExpenseResult.NotFound());
 			return Task.FromResult(UpdateExpenseResult.Success(patched));
@@ -108,7 +113,7 @@ namespace MoneyManager.Data.Repositories
 			if (idList.Count == 0 || updates.Count == 0) return Task.FromResult(false);
 			var now = _nowProvider.UtcNow;
 			var count = _store.UpdateExpenses(idList, userId, e =>
-				ExpensePatchApplicator.ApplyTo(e, updates, now));
+				_patchApplicator.ApplyTo(e, updates, now));
 			return Task.FromResult(count > 0);
 		}
 

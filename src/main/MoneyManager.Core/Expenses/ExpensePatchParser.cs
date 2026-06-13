@@ -3,13 +3,9 @@ using System.Text.Json;
 
 namespace MoneyManager.Core.Expenses
 {
-	public sealed record ExpensePatchParseResult(
-		Dictionary<string, object?> Updates,
-		DateTime? ExpectedModifiedDateTime);
-
-	public static class ExpensePatchParser
+	public class ExpensePatchParser : IExpensePatchParser
 	{
-		public static ExpensePatchParseResult Parse(JsonElement jsonElement)
+		public ExpensePatchParseResult Parse(JsonElement jsonElement)
 		{
 			var updates = new Dictionary<string, object?>();
 			DateTime? expectedModifiedDateTime = null;

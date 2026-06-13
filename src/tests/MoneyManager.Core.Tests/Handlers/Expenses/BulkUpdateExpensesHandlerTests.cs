@@ -1,6 +1,7 @@
 using Moq;
 using MoneyManager.Core.Application.Expenses.Commands;
 using MoneyManager.Core.Expenses;
+using MoneyManager.Core.Models.Input;
 using MoneyManager.Core.Repositories;
 using MoneyManager.Tests.Utilities;
 using Xunit;
@@ -13,7 +14,7 @@ public class BulkUpdateExpensesHandlerTests : HandlerBase<BulkUpdateExpensesHand
 
 	protected readonly Guid _userId;
 	protected readonly CancellationToken _ct;
-	protected IReadOnlyList<int> _ids = null!;
+	protected BulkUpdateRequest _request = null!;
 	protected Dictionary<string, object?> _updates = null!;
 	protected bool _result;
 	protected Exception _expectedException = null!;
@@ -23,21 +24,34 @@ public class BulkUpdateExpensesHandlerTests : HandlerBase<BulkUpdateExpensesHand
 	{
 		_userId = Fixture.Create<Guid>();
 		_ct = CancellationToken.None;
-		_ids = new[] { 1, 2, 3 };
+		_request = new BulkUpdateRequest
+		{
+			Ids = [1, 2, 3],
+			Category = 5
+		};
 		_updates = new Dictionary<string, object?> { [ExpenseFieldNames.Category] = 5 };
+		UseRealBulkUpdateMapper();
+	}
+
+	private void UseRealBulkUpdateMapper()
+	{
+		var mapper = new ExpenseBulkUpdateMapper();
+		MockFor<IExpenseBulkUpdateMapper>()
+			.Setup(m => m.ToUpdates(It.IsAny<BulkUpdateRequest>()))
+			.Returns((BulkUpdateRequest request) => mapper.ToUpdates(request));
 	}
 
 	public class Success_Setup : BulkUpdateExpensesHandlerTests
 	{
 		public Success_Setup()
 		{
-			_repository.Setup(r => r.BulkUpdate(_ids, _userId, _updates)).ReturnsAsync(true);
+			_repository.Setup(r => r.BulkUpdate(_request.Ids, _userId, _updates)).ReturnsAsync(true);
 		}
 
 		protected override async Task ExecuteTestMethodAsync()
 		{
 			_result = await SubjectUnderTest.Handle(
-				new BulkUpdateExpensesCommand(_ids, _userId, _updates), _ct);
+				new BulkUpdateExpensesCommand(_userId, _request), _ct);
 		}
 	}
 
@@ -53,7 +67,9 @@ public class BulkUpdateExpensesHandlerTests : HandlerBase<BulkUpdateExpensesHand
 		[Fact]
 		public void CallsBulkUpdate()
 		{
-			_fixture._repository.Verify(r => r.BulkUpdate(_fixture._ids, _fixture._userId, _fixture._updates), Times.Once);
+			_fixture._repository.Verify(
+				r => r.BulkUpdate(_fixture._request.Ids, _fixture._userId, _fixture._updates),
+				Times.Once);
 		}
 	}
 
@@ -61,13 +77,13 @@ public class BulkUpdateExpensesHandlerTests : HandlerBase<BulkUpdateExpensesHand
 	{
 		public Failure_Setup()
 		{
-			_repository.Setup(r => r.BulkUpdate(_ids, _userId, _updates)).ReturnsAsync(false);
+			_repository.Setup(r => r.BulkUpdate(_request.Ids, _userId, _updates)).ReturnsAsync(false);
 		}
 
 		protected override async Task ExecuteTestMethodAsync()
 		{
 			_result = await SubjectUnderTest.Handle(
-				new BulkUpdateExpensesCommand(_ids, _userId, _updates), _ct);
+				new BulkUpdateExpensesCommand(_userId, _request), _ct);
 		}
 	}
 
@@ -86,13 +102,13 @@ public class BulkUpdateExpensesHandlerTests : HandlerBase<BulkUpdateExpensesHand
 		public RepositoryThrows_Setup()
 		{
 			_expectedException = new InvalidOperationException("bulk update failed");
-			_repository.Setup(r => r.BulkUpdate(_ids, _userId, _updates)).ThrowsAsync(_expectedException);
+			_repository.Setup(r => r.BulkUpdate(_request.Ids, _userId, _updates)).ThrowsAsync(_expectedException);
 		}
 
 		protected override async Task ExecuteTestMethodAsync()
 		{
 			_thrownException = await Record.ExceptionAsync(() =>
-				SubjectUnderTest.Handle(new BulkUpdateExpensesCommand(_ids, _userId, _updates), _ct));
+				SubjectUnderTest.Handle(new BulkUpdateExpensesCommand(_userId, _request), _ct));
 		}
 	}
 

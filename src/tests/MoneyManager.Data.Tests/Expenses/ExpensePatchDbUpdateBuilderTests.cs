@@ -8,6 +8,7 @@ namespace MoneyManager.Data.Tests.Expenses;
 
 public class ExpensePatchDbUpdateBuilderTests : TestBase<object>
 {
+	private readonly ExpensePatchDbUpdateBuilder _builder = new();
 	protected List<string> _setClauses = null!;
 	protected List<SqlParameter> _parameters = null!;
 	protected bool _hasChanges;
@@ -40,7 +41,7 @@ public class ExpensePatchDbUpdateBuilderTests : TestBase<object>
 				[ExpenseFieldNames.ExcludeFromCredit] = false
 			};
 
-			_hasChanges = ExpensePatchDbUpdateBuilder.AppendPatchSetClauses(updates, _setClauses, _parameters);
+			_hasChanges = _builder.AppendPatchSetClauses(updates, _setClauses, _parameters);
 		}
 
 		[Fact]
@@ -98,7 +99,7 @@ public class ExpensePatchDbUpdateBuilderTests : TestBase<object>
 				[ExpenseFieldNames.DatePaid] = null
 			};
 
-			_hasChanges = ExpensePatchDbUpdateBuilder.AppendPatchSetClauses(updates, _setClauses, _parameters);
+			_hasChanges = _builder.AppendPatchSetClauses(updates, _setClauses, _parameters);
 		}
 
 		[Fact]
@@ -120,7 +121,7 @@ public class ExpensePatchDbUpdateBuilderTests : TestBase<object>
 
 		protected override void ExecuteTestMethod()
 		{
-			_hasChanges = ExpensePatchDbUpdateBuilder.AppendPatchSetClauses(
+			_hasChanges = _builder.AppendPatchSetClauses(
 				new Dictionary<string, object?>(),
 				_setClauses,
 				_parameters);
@@ -146,7 +147,7 @@ public class ExpensePatchDbUpdateBuilderTests : TestBase<object>
 				[ExpenseFieldNames.DatePaid] = null
 			};
 
-			_hasChanges = ExpensePatchDbUpdateBuilder.AppendBulkSetClauses(updates, _setClauses, _parameters);
+			_hasChanges = _builder.AppendBulkSetClauses(updates, _setClauses, _parameters);
 		}
 
 		[Fact]
@@ -167,7 +168,7 @@ public class ExpensePatchDbUpdateBuilderTests : TestBase<object>
 			_setClauses.Clear();
 			_parameters.Clear();
 
-			var hasChanges = ExpensePatchDbUpdateBuilder.AppendBulkSetClauses(
+			var hasChanges = _builder.AppendBulkSetClauses(
 				new Dictionary<string, object?> { [ExpenseFieldNames.Expense] = "Ignored" },
 				_setClauses,
 				_parameters);

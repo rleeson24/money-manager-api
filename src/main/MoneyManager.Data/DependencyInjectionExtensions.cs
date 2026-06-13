@@ -1,5 +1,6 @@
 using MoneyManager.Core;
 using MoneyManager.Core.Repositories;
+using MoneyManager.Data.Expenses;
 using MoneyManager.Data.Mappers;
 using MoneyManager.Data.Repositories;
 using MoneyManager.Data.Bootstrap;
@@ -38,6 +39,7 @@ namespace MoneyManager.Data
 			services.AddScoped<IPaymentMethodMapper, PaymentMethodMapper>();
 			services.AddScoped<IExpenseSplitMapper, ExpenseSplitMapper>();
 			services.AddScoped<ExpenseDomainMapper>();
+			services.AddSingleton<IExpensePatchDbUpdateBuilder, ExpensePatchDbUpdateBuilder>();
 			services.AddScoped<IExpenseRepository, ExpenseRepository>();
 			services.AddScoped<ICategoryRepository, CategoryRepository>();
 			services.AddScoped<IPaymentMethodRepository, PaymentMethodRepository>();

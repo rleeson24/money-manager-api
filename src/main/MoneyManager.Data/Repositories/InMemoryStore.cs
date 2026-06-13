@@ -21,12 +21,14 @@ namespace MoneyManager.Data.Repositories
 		private readonly Dictionary<int, Guid> _expenseOwners;
 		private readonly List<ExpenseSplit> _expenseSplits;
 		private readonly List<Category> _categories;
+		private readonly ICategoryTreeService _categoryTreeService;
 		private int _nextExpenseId;
 		private int _nextSplitId;
 		private int _nextCategoryId;
 
-		public InMemoryStore(IOptions<DataOptions> dataOptions)
+		public InMemoryStore(IOptions<DataOptions> dataOptions, ICategoryTreeService categoryTreeService)
 		{
+			_categoryTreeService = categoryTreeService;
 			var seedUserId = ResolveSeedUserId(dataOptions.Value.AspireSeedUserId);
 			_expenses = new List<Expense>(MockData.Expenses);
 			_expenseOwners = new Dictionary<int, Guid>();
@@ -135,8 +137,8 @@ namespace MoneyManager.Data.Repositories
 					|| _expenseSplits.Any(s => s.Category == categoryId);
 		}
 
-		private static IReadOnlyList<Category> FinalizeCategories(List<Category> categories) =>
-			CategoryTreeHelper.WithHasChildren(CategoryTreeHelper.SortForDisplay(categories.ToList()));
+		private IReadOnlyList<Category> FinalizeCategories(List<Category> categories) =>
+			_categoryTreeService.PrepareForDisplay(categories);
 
 		public IReadOnlyList<PaymentMethod> PaymentMethods => MockData.PaymentMethods;
 

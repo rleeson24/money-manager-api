@@ -1,5 +1,3 @@
-using System.Collections.Generic;
-using System.Linq;
 using MoneyManager.Core.Models;
 
 namespace MoneyManager.Core.Import
@@ -8,9 +6,9 @@ namespace MoneyManager.Core.Import
 	/// Filters out parsed transactions that already exist as expenses (same date-only and amount rounded to 2 decimals).
 	/// Caller should scope existingExpenses to the import's payment method so cross-account matches are ignored.
 	/// </summary>
-	public static class ImportDuplicateFilter
+	public class ImportDuplicateFilter : IImportDuplicateFilter
 	{
-		public static IReadOnlyList<BankTransaction> FilterDuplicates(
+		public IReadOnlyList<BankTransaction> FilterDuplicates(
 			IReadOnlyList<Expense> existingExpenses,
 			IReadOnlyList<BankTransaction> transactions)
 		{

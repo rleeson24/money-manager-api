@@ -20,13 +20,20 @@ namespace MoneyManager.Data.Repositories
 		private readonly IExpenseMapper _readerMapper;
 		private readonly ExpenseDomainMapper _domainMapper;
 		private readonly INowProvider _nowProvider;
+		private readonly IExpensePatchDbUpdateBuilder _patchDbUpdateBuilder;
 
-		public ExpenseRepository(DbExecutor db, IExpenseMapper readerMapper, ExpenseDomainMapper domainMapper, INowProvider nowProvider)
+		public ExpenseRepository(
+			DbExecutor db,
+			IExpenseMapper readerMapper,
+			ExpenseDomainMapper domainMapper,
+			INowProvider nowProvider,
+			IExpensePatchDbUpdateBuilder patchDbUpdateBuilder)
 		{
 			_db = db;
 			_readerMapper = readerMapper;
 			_domainMapper = domainMapper;
 			_nowProvider = nowProvider;
+			_patchDbUpdateBuilder = patchDbUpdateBuilder;
 		}
 
 		public async Task<Expense?> Get(int id, Guid userId)
@@ -145,7 +152,7 @@ namespace MoneyManager.Data.Repositories
 				new SqlParameter("@UserId", userId)
 			};
 
-			if (!ExpensePatchDbUpdateBuilder.AppendBulkSetClauses(updates, setClauses, parameters))
+			if (!_patchDbUpdateBuilder.AppendBulkSetClauses(updates, setClauses, parameters))
 				return false;
 
 			setClauses.Add("ModifiedDate = @ModifiedDate");
@@ -336,7 +343,7 @@ namespace MoneyManager.Data.Repositories
 				new SqlParameter("@UserId", userId)
 			};
 
-			if (!ExpensePatchDbUpdateBuilder.AppendPatchSetClauses(updates, setClauses, parameters))
+			if (!_patchDbUpdateBuilder.AppendPatchSetClauses(updates, setClauses, parameters))
 				return false;
 
 			setClauses.Add("ModifiedDate = @ModifiedDate");

@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -7,7 +6,6 @@ using MoneyManager.API.Filters;
 using MoneyManager.API.Infrastructure;
 using MoneyManager.Core.Application.Expenses.Commands;
 using MoneyManager.Core.Application.Expenses.Queries;
-using MoneyManager.Core.Expenses;
 using MoneyManager.Core.Models;
 using MoneyManager.Core.Models.Input;
 using System.Text.Json;
@@ -79,10 +77,9 @@ namespace MoneyManager.API.Controllers
 		public async Task<IActionResult> PatchExpense(int id, [FromBody] JsonElement jsonElement, CancellationToken cancellationToken = default)
 		{
 			var userId = UserIdHttpContext.GetRequired(HttpContext);
-			var parsed = ExpensePatchParser.Parse(jsonElement);
 
 			var result = await _mediator.Send(
-				new PatchExpenseCommand(id, userId, parsed.Updates, parsed.ExpectedModifiedDateTime),
+				new PatchExpenseCommand(id, userId, jsonElement),
 				cancellationToken);
 			if (result.IsSuccess)
 				return Ok(result.Updated);
@@ -105,20 +102,8 @@ namespace MoneyManager.API.Controllers
 		public async Task<IActionResult> BulkUpdateExpenses([FromBody] BulkUpdateRequest request, CancellationToken cancellationToken = default)
 		{
 			var userId = UserIdHttpContext.GetRequired(HttpContext);
-			var updates = new Dictionary<string, object?>();
-			if (request.ExpenseDate != null)
-				updates[ExpenseFieldNames.ExpenseDate] = request.ExpenseDate;
-			if (request.SetCategoryToNull == true)
-				updates[ExpenseFieldNames.Category] = null;
-			else if (request.Category != null)
-				updates[ExpenseFieldNames.Category] = request.Category;
-			if (request.SetDatePaidToNull == true)
-				updates[ExpenseFieldNames.DatePaid] = null;
-			else if (request.DatePaid != null)
-				updates[ExpenseFieldNames.DatePaid] = request.DatePaid;
-
 			var success = await _mediator.Send(
-				new BulkUpdateExpensesCommand(request.Ids, userId, updates),
+				new BulkUpdateExpensesCommand(userId, request),
 				cancellationToken);
 			if (success)
 				return Ok();

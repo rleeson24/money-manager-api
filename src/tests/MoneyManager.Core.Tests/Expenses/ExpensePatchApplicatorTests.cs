@@ -9,6 +9,7 @@ namespace MoneyManager.Core.Tests.Expenses;
 public class ExpensePatchApplicatorTests
 {
 	private readonly IFixture _fixture = ConfiguredFixture.Create();
+	private readonly ExpensePatchApplicator _applicator = new();
 
 	[Fact]
 	public void Apply_ReturnsNewExpenseWithUpdatesApplied()
@@ -23,7 +24,7 @@ public class ExpensePatchApplicatorTests
 			[ExpenseFieldNames.Amount] = 75.25m
 		};
 
-		var result = ExpensePatchApplicator.Apply(current, updates, modifiedUtc);
+		var result = _applicator.Apply(current, updates, modifiedUtc);
 
 		Assert.NotSame(current, result);
 		Assert.Equal(current.Expense_I, result.Expense_I);
@@ -47,7 +48,7 @@ public class ExpensePatchApplicatorTests
 			[ExpenseFieldNames.DatePaid] = null
 		};
 
-		ExpensePatchApplicator.ApplyTo(target, updates, modifiedUtc);
+		_applicator.ApplyTo(target, updates, modifiedUtc);
 
 		Assert.Null(target.PaymentMethod);
 		Assert.Null(target.Category);
@@ -68,7 +69,7 @@ public class ExpensePatchApplicatorTests
 			[ExpenseFieldNames.ExcludeFromCredit] = true
 		};
 
-		ExpensePatchApplicator.ApplyTo(target, updates, modifiedUtc);
+		_applicator.ApplyTo(target, updates, modifiedUtc);
 
 		Assert.True(target.IsSplit);
 		Assert.True(target.ExcludeFromCredit);

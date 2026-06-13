@@ -4,8 +4,10 @@ using Xunit;
 
 namespace MoneyManager.Core.Tests.Import;
 
-public class ImportFilterRulesTests
+public class ImportTransactionFilterTests
 {
+	private readonly ImportTransactionFilter _filter = new();
+
 	[Fact]
 	public void RemoveTransfersAndPayments_ExcludesPaymentDescriptions()
 	{
@@ -15,7 +17,7 @@ public class ImportFilterRulesTests
 			new() { Date = DateTime.Today, Amount = -50m, Description = "Grocery store" }
 		};
 
-		var result = ImportFilterRules.RemoveTransfersAndPayments(transactions);
+		var result = _filter.RemoveTransfersAndPayments(transactions);
 
 		Assert.Single(result);
 		Assert.Equal("Grocery store", result[0].Description);
@@ -30,7 +32,7 @@ public class ImportFilterRulesTests
 			new() { Date = DateTime.Today, Amount = -10m, Description = "Coffee" }
 		};
 
-		var result = ImportFilterRules.RemoveTransfersAndPayments(transactions);
+		var result = _filter.RemoveTransfersAndPayments(transactions);
 
 		Assert.Single(result);
 		Assert.Equal("Coffee", result[0].Description);
@@ -45,7 +47,7 @@ public class ImportFilterRulesTests
 			new() { Date = DateTime.Today, Amount = -8m, Description = "Parking" }
 		};
 
-		var result = ImportFilterRules.RemoveTransfersAndPayments(transactions);
+		var result = _filter.RemoveTransfersAndPayments(transactions);
 
 		Assert.Equal(2, result.Count);
 	}

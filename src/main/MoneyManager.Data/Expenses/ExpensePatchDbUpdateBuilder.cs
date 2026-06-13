@@ -3,9 +3,9 @@ using MoneyManager.Core.Expenses;
 
 namespace MoneyManager.Data.Expenses
 {
-	internal static class ExpensePatchDbUpdateBuilder
+	public class ExpensePatchDbUpdateBuilder : IExpensePatchDbUpdateBuilder
 	{
-		public static bool AppendPatchSetClauses(
+		public bool AppendPatchSetClauses(
 			IReadOnlyDictionary<string, object?> updates,
 			ICollection<string> setClauses,
 			ICollection<SqlParameter> parameters)
@@ -85,7 +85,7 @@ namespace MoneyManager.Data.Expenses
 			return added > 0;
 		}
 
-		public static bool AppendBulkSetClauses(
+		public bool AppendBulkSetClauses(
 			IReadOnlyDictionary<string, object?> updates,
 			ICollection<string> setClauses,
 			ICollection<SqlParameter> parameters)

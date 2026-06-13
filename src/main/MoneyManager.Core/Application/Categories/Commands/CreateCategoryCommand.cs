@@ -31,13 +31,13 @@ namespace MoneyManager.Core.Application.Categories.Commands
 
 	public class CreateCategoryCommandValidator : AbstractValidator<CreateCategoryCommand>
 	{
-		public CreateCategoryCommandValidator(ICategoryRepository repository)
+		public CreateCategoryCommandValidator(ICategoryRepository repository, ICategoryValidator categoryValidator)
 		{
 			RuleFor(x => x.Model.Name).NotEmpty().MaximumLength(100);
 			RuleFor(x => x.Model).CustomAsync(async (model, context, cancellationToken) =>
 			{
 				var existing = await repository.GetAll();
-				var error = CategoryCommandValidationRules.ValidateCreate(model, existing);
+				var error = categoryValidator.ValidateCreate(model, existing);
 				if (error != null)
 					context.AddFailure(error);
 			});

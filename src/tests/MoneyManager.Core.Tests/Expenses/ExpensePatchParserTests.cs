@@ -6,6 +6,7 @@ namespace MoneyManager.Core.Tests.Expenses;
 
 public class ExpensePatchParserTests
 {
+	private readonly ExpensePatchParser _parser = new();
 	[Fact]
 	public void Parse_ParsesStringAmountAndDateFields()
 	{
@@ -19,7 +20,7 @@ public class ExpensePatchParserTests
 			""";
 		var element = JsonDocument.Parse(json).RootElement;
 
-		var result = ExpensePatchParser.Parse(element);
+		var result = _parser.Parse(element);
 
 		Assert.Equal("Lunch", result.Updates[ExpenseFieldNames.Expense]);
 		Assert.Equal(12.50m, result.Updates[ExpenseFieldNames.Amount]);
@@ -41,7 +42,7 @@ public class ExpensePatchParserTests
 			""";
 		var element = JsonDocument.Parse(json).RootElement;
 
-		var result = ExpensePatchParser.Parse(element);
+		var result = _parser.Parse(element);
 
 		Assert.True((bool)result.Updates[ExpenseFieldNames.IsSplit]!);
 		Assert.False((bool)result.Updates[ExpenseFieldNames.ExcludeFromCredit]!);
@@ -62,7 +63,7 @@ public class ExpensePatchParserTests
 			""";
 		var element = JsonDocument.Parse(json).RootElement;
 
-		var result = ExpensePatchParser.Parse(element);
+		var result = _parser.Parse(element);
 
 		Assert.NotNull(result.ExpectedModifiedDateTime);
 		Assert.Equal(new DateTime(2025, 6, 10, 14, 30, 0, DateTimeKind.Utc), result.ExpectedModifiedDateTime);

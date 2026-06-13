@@ -15,11 +15,13 @@ namespace MoneyManager.Data.Repositories
 	{
 		private readonly DbExecutor _db;
 		private readonly ICategoryMapper _readerMapper;
+		private readonly ICategoryTreeService _categoryTreeService;
 
-		public CategoryRepository(DbExecutor db, ICategoryMapper readerMapper)
+		public CategoryRepository(DbExecutor db, ICategoryMapper readerMapper, ICategoryTreeService categoryTreeService)
 		{
 			_db = db;
 			_readerMapper = readerMapper;
+			_categoryTreeService = categoryTreeService;
 		}
 
 		public Task<IReadOnlyList<Category>> GetAll(bool activeOnly = false) =>
@@ -139,7 +141,7 @@ namespace MoneyManager.Data.Repositories
 			Archived = db.Archived
 		};
 
-		private static IReadOnlyList<Category> FinalizeList(IEnumerable<Category> categories) =>
-			CategoryTreeHelper.WithHasChildren(CategoryTreeHelper.SortForDisplay(categories.ToList()));
+		private IReadOnlyList<Category> FinalizeList(IEnumerable<Category> categories) =>
+			_categoryTreeService.PrepareForDisplay(categories.ToList());
 	}
 }

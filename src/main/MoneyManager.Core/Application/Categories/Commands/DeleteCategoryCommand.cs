@@ -30,7 +30,7 @@ namespace MoneyManager.Core.Application.Categories.Commands
 
 	public class DeleteCategoryCommandValidator : AbstractValidator<DeleteCategoryCommand>
 	{
-		public DeleteCategoryCommandValidator(ICategoryRepository repository)
+		public DeleteCategoryCommandValidator(ICategoryRepository repository, ICategoryValidator categoryValidator)
 		{
 			RuleFor(x => x.Id).GreaterThan(0);
 			RuleFor(x => x).CustomAsync(async (command, context, cancellationToken) =>
@@ -41,7 +41,7 @@ namespace MoneyManager.Core.Application.Categories.Commands
 					return;
 
 				var inUse = await repository.IsInUse(command.Id);
-				var error = CategoryCommandValidationRules.ValidateDelete(current, existing, inUse);
+				var error = categoryValidator.ValidateDelete(current, existing, inUse);
 				if (error != null)
 					context.AddFailure(error);
 			});

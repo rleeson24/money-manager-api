@@ -54,6 +54,29 @@ public class ImportFromFileHandlerTests : HandlerBase<ImportFromFileHandler>
 				AccountType = BankAccountType.Depository
 			}
 		};
+		UseRealImportPipeline();
+	}
+
+	private void UseRealImportPipeline()
+	{
+		var duplicateFilter = new ImportDuplicateFilter();
+		var transactionFilter = new ImportTransactionFilter();
+		var normalizer = new ImportTransactionNormalizer();
+
+		MockFor<IImportDuplicateFilter>()
+			.Setup(f => f.FilterDuplicates(It.IsAny<IReadOnlyList<Expense>>(), It.IsAny<IReadOnlyList<BankTransaction>>()))
+			.Returns((IReadOnlyList<Expense> existing, IReadOnlyList<BankTransaction> transactions) =>
+				duplicateFilter.FilterDuplicates(existing, transactions));
+
+		MockFor<IImportTransactionFilter>()
+			.Setup(f => f.RemoveTransfersAndPayments(It.IsAny<IReadOnlyList<BankTransaction>>()))
+			.Returns((IReadOnlyList<BankTransaction> transactions) =>
+				transactionFilter.RemoveTransfersAndPayments(transactions));
+
+		MockFor<IImportTransactionNormalizer>()
+			.Setup(n => n.Normalize(It.IsAny<BankTransaction>(), It.IsAny<ImportSource>()))
+			.Returns((BankTransaction transaction, ImportSource source) =>
+				normalizer.Normalize(transaction, source));
 	}
 
 	public class Success_Setup : ImportFromFileHandlerTests

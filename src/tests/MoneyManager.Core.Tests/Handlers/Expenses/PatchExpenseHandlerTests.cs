@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Moq;
 using MoneyManager.Core.Application.Expenses.Commands;
 using MoneyManager.Core.Expenses;
@@ -15,6 +16,7 @@ public class PatchExpenseHandlerTests : HandlerBase<PatchExpenseHandler>
 	protected readonly Guid _userId;
 	protected readonly int _id;
 	protected readonly CancellationToken _ct;
+	protected readonly JsonDocument _patchDocument;
 	protected Dictionary<string, object?> _updates = null!;
 	protected DateTime? _expectedModified;
 	protected UpdateExpenseResult _result = null!;
@@ -30,20 +32,30 @@ public class PatchExpenseHandlerTests : HandlerBase<PatchExpenseHandler>
 		_expectedModified = Fixture.Create<DateTime>();
 		_updates = new Dictionary<string, object?> { [ExpenseFieldNames.Amount] = 42.50m };
 		_expense = Fixture.Create<Expense>();
+		_patchDocument = JsonDocument.Parse("""{"amount": 42.50}""");
+		UseRealPatchParser();
+	}
+
+	private void UseRealPatchParser()
+	{
+		var parser = new ExpensePatchParser();
+		MockFor<IExpensePatchParser>()
+			.Setup(p => p.Parse(It.IsAny<JsonElement>()))
+			.Returns((JsonElement element) => parser.Parse(element));
 	}
 
 	public class Success_Setup : PatchExpenseHandlerTests
 	{
 		public Success_Setup()
 		{
-			_repository.Setup(r => r.Patch(_id, _userId, _updates, _expectedModified))
+			_repository.Setup(r => r.Patch(_id, _userId, It.IsAny<Dictionary<string, object?>>(), It.IsAny<DateTime?>()))
 				.ReturnsAsync(UpdateExpenseResult.Success(_expense));
 		}
 
 		protected override async Task ExecuteTestMethodAsync()
 		{
 			_result = await SubjectUnderTest.Handle(
-				new PatchExpenseCommand(_id, _userId, _updates, _expectedModified), _ct);
+				new PatchExpenseCommand(_id, _userId, _patchDocument.RootElement), _ct);
 		}
 	}
 
@@ -61,14 +73,14 @@ public class PatchExpenseHandlerTests : HandlerBase<PatchExpenseHandler>
 	{
 		public NotFound_Setup()
 		{
-			_repository.Setup(r => r.Patch(_id, _userId, _updates, _expectedModified))
+			_repository.Setup(r => r.Patch(_id, _userId, It.IsAny<Dictionary<string, object?>>(), It.IsAny<DateTime?>()))
 				.ReturnsAsync(UpdateExpenseResult.NotFound());
 		}
 
 		protected override async Task ExecuteTestMethodAsync()
 		{
 			_result = await SubjectUnderTest.Handle(
-				new PatchExpenseCommand(_id, _userId, _updates, _expectedModified), _ct);
+				new PatchExpenseCommand(_id, _userId, _patchDocument.RootElement), _ct);
 		}
 	}
 
@@ -86,14 +98,14 @@ public class PatchExpenseHandlerTests : HandlerBase<PatchExpenseHandler>
 	{
 		public Conflict_Setup()
 		{
-			_repository.Setup(r => r.Patch(_id, _userId, _updates, _expectedModified))
+			_repository.Setup(r => r.Patch(_id, _userId, It.IsAny<Dictionary<string, object?>>(), It.IsAny<DateTime?>()))
 				.ReturnsAsync(UpdateExpenseResult.Conflict(_expense));
 		}
 
 		protected override async Task ExecuteTestMethodAsync()
 		{
 			_result = await SubjectUnderTest.Handle(
-				new PatchExpenseCommand(_id, _userId, _updates, _expectedModified), _ct);
+				new PatchExpenseCommand(_id, _userId, _patchDocument.RootElement), _ct);
 		}
 	}
 
@@ -112,14 +124,14 @@ public class PatchExpenseHandlerTests : HandlerBase<PatchExpenseHandler>
 		public RepositoryThrows_Setup()
 		{
 			_expectedException = new InvalidOperationException("patch failed");
-			_repository.Setup(r => r.Patch(_id, _userId, _updates, _expectedModified))
+			_repository.Setup(r => r.Patch(_id, _userId, It.IsAny<Dictionary<string, object?>>(), It.IsAny<DateTime?>()))
 				.ThrowsAsync(_expectedException);
 		}
 
 		protected override async Task ExecuteTestMethodAsync()
 		{
 			_thrownException = await Record.ExceptionAsync(() =>
-				SubjectUnderTest.Handle(new PatchExpenseCommand(_id, _userId, _updates, _expectedModified), _ct));
+				SubjectUnderTest.Handle(new PatchExpenseCommand(_id, _userId, _patchDocument.RootElement), _ct));
 		}
 	}
 

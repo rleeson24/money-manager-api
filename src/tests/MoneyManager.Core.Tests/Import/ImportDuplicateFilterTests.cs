@@ -6,6 +6,7 @@ namespace MoneyManager.Core.Tests.Import;
 
 public class ImportDuplicateFilterTests
 {
+	private readonly ImportDuplicateFilter _filter = new();
 	[Fact]
 	public void FilterDuplicates_RemovesMatchingDateAndAmount()
 	{
@@ -20,7 +21,7 @@ public class ImportDuplicateFilterTests
 			new() { Date = date, Amount = 10.00m, Description = "Unique" }
 		};
 
-		var result = ImportDuplicateFilter.FilterDuplicates(existing, transactions);
+		var result = _filter.FilterDuplicates(existing, transactions);
 
 		Assert.Single(result);
 		Assert.Equal(10.00m, result[0].Amount);
@@ -39,7 +40,7 @@ public class ImportDuplicateFilterTests
 			new() { Date = new DateTime(2025, 2, 2), Amount = 75m, Description = "B" }
 		};
 
-		var result = ImportDuplicateFilter.FilterDuplicates(existing, transactions);
+		var result = _filter.FilterDuplicates(existing, transactions);
 
 		Assert.Equal(2, result.Count);
 	}
@@ -56,7 +57,7 @@ public class ImportDuplicateFilterTests
 			new() { Date = new DateTime(2025, 3, 15, 8, 0, 0), Amount = 20m, Description = "Same day" }
 		};
 
-		var result = ImportDuplicateFilter.FilterDuplicates(existing, transactions);
+		var result = _filter.FilterDuplicates(existing, transactions);
 
 		Assert.Empty(result);
 	}

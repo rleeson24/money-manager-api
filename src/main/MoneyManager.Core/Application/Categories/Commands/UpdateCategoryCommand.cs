@@ -31,7 +31,7 @@ namespace MoneyManager.Core.Application.Categories.Commands
 
 	public class UpdateCategoryCommandValidator : AbstractValidator<UpdateCategoryCommand>
 	{
-		public UpdateCategoryCommandValidator(ICategoryRepository repository)
+		public UpdateCategoryCommandValidator(ICategoryRepository repository, ICategoryValidator categoryValidator)
 		{
 			RuleFor(x => x.Id).GreaterThan(0);
 			When(x => x.Model.Name != null, () =>
@@ -45,7 +45,7 @@ namespace MoneyManager.Core.Application.Categories.Commands
 				if (current == null)
 					return;
 
-				var error = CategoryCommandValidationRules.ValidateUpdate(current, command.Model, existing);
+				var error = categoryValidator.ValidateUpdate(current, command.Model, existing);
 				if (error != null)
 					context.AddFailure(error);
 			});

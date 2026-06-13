@@ -5,7 +5,6 @@ using Moq;
 using MoneyManager.API.Controllers;
 using MoneyManager.Core.Application.Expenses.Commands;
 using MoneyManager.Core.Application.Expenses.Queries;
-using MoneyManager.Core.Expenses;
 using MoneyManager.Core.Models;
 using MoneyManager.Core.Models.Input;
 
@@ -218,10 +217,10 @@ public class ExpensesControllerTests
 			.Setup(m => m.Send(
 				It.Is<BulkUpdateExpensesCommand>(c =>
 					c.UserId == _userId &&
-					c.Ids.SequenceEqual(request.Ids) &&
-					c.Updates.ContainsKey(ExpenseFieldNames.ExpenseDate) &&
-					c.Updates.ContainsKey(ExpenseFieldNames.Category) &&
-					c.Updates.ContainsKey(ExpenseFieldNames.DatePaid)),
+					c.Request.Ids.SequenceEqual(request.Ids) &&
+					c.Request.ExpenseDate == request.ExpenseDate &&
+					c.Request.Category == request.Category &&
+					c.Request.DatePaid == request.DatePaid),
 				It.IsAny<CancellationToken>()))
 			.ReturnsAsync(true);
 

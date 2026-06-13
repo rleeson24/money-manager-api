@@ -21,15 +21,24 @@ namespace MoneyManager.Core.Application.Import.Commands
 	{
 		private readonly ITransactionFileParser _parser;
 		private readonly IExpenseRepository _expenseRepository;
+		private readonly IImportDuplicateFilter _duplicateFilter;
+		private readonly IImportTransactionFilter _transactionFilter;
+		private readonly IImportTransactionNormalizer _transactionNormalizer;
 		private readonly ILogger<ImportFromFileHandler> _logger;
 
 		public ImportFromFileHandler(
 			ITransactionFileParser parser,
 			IExpenseRepository expenseRepository,
+			IImportDuplicateFilter duplicateFilter,
+			IImportTransactionFilter transactionFilter,
+			IImportTransactionNormalizer transactionNormalizer,
 			ILogger<ImportFromFileHandler> logger)
 		{
 			_parser = parser;
 			_expenseRepository = expenseRepository;
+			_duplicateFilter = duplicateFilter;
+			_transactionFilter = transactionFilter;
+			_transactionNormalizer = transactionNormalizer;
 			_logger = logger;
 		}
 
@@ -55,8 +64,7 @@ namespace MoneyManager.Core.Application.Import.Commands
 
 			_logger.LogInformation("Parsed {TransactionCount} transactions for user {UserId}", transactions.Count, request.UserId);
 
-			var accountType = importSource.ToAccountType();
-			var normalized = transactions.Select(t => ApplySignRules(t, accountType, importSource)).ToList();
+			var normalized = transactions.Select(t => _transactionNormalizer.Normalize(t, importSource)).ToList();
 
 			if (normalized.Count == 0)
 			{
@@ -67,8 +75,8 @@ namespace MoneyManager.Core.Application.Import.Commands
 			var minDate = normalized.Min(t => t.Date.Date);
 			var maxDate = normalized.Max(t => t.Date.Date);
 			var existing = await _expenseRepository.ListForUserInDateRange(request.UserId, minDate, maxDate, request.PaymentMethodId);
-			var toCreate = ImportDuplicateFilter.FilterDuplicates(existing, normalized);
-			toCreate = ImportFilterRules.RemoveTransfersAndPayments(toCreate);
+			var toCreate = _duplicateFilter.FilterDuplicates(existing, normalized);
+			toCreate = _transactionFilter.RemoveTransfersAndPayments(toCreate);
 			var skippedDuplicates = normalized.Count - toCreate.Count;
 
 			_logger.LogInformation(
@@ -114,12 +122,6 @@ namespace MoneyManager.Core.Application.Import.Commands
 			};
 		}
 
-		private static BankTransaction ApplySignRules(BankTransaction t, BankAccountType accountType, ImportSource importSource)
-		{
-			if (importSource == ImportSource.DiscoverSavings || importSource == ImportSource.DiscoverChecking || importSource == ImportSource.AbfcuSavings || importSource == ImportSource.AbfcuChecking)
-				t.Amount = -t.Amount;
-			return t;
-		}
 	}
 
 	public class ImportFromFileCommandValidator : AbstractValidator<ImportFromFileCommand>

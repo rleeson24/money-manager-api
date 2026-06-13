@@ -2,9 +2,9 @@ using MoneyManager.Core.Models;
 
 namespace MoneyManager.Core.Expenses
 {
-	public static class ExpensePatchApplicator
+	public class ExpensePatchApplicator : IExpensePatchApplicator
 	{
-		public static Expense Apply(Expense current, IReadOnlyDictionary<string, object?> updates, DateTime modifiedUtc)
+		public Expense Apply(Expense current, IReadOnlyDictionary<string, object?> updates, DateTime modifiedUtc)
 		{
 			var patched = new Expense
 			{
@@ -26,7 +26,7 @@ namespace MoneyManager.Core.Expenses
 			return patched;
 		}
 
-		public static void ApplyTo(Expense target, IReadOnlyDictionary<string, object?> updates, DateTime modifiedUtc)
+		public void ApplyTo(Expense target, IReadOnlyDictionary<string, object?> updates, DateTime modifiedUtc)
 		{
 			if (updates.TryGetValue(ExpenseFieldNames.ExpenseDate, out var expenseDate) && expenseDate is DateTime dt)
 				target.ExpenseDate = dt;

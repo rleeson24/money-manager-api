@@ -4,9 +4,9 @@ using MoneyManager.Core.Utilities;
 
 namespace MoneyManager.Core.Application.Categories
 {
-	internal static class CategoryCommandValidationRules
+	public class CategoryValidator : ICategoryValidator
 	{
-		public static string? ValidateCreate(CreateCategoryModel model, IReadOnlyList<Category> existing)
+		public string? ValidateCreate(CreateCategoryModel model, IReadOnlyList<Category> existing)
 		{
 			if (string.IsNullOrWhiteSpace(model.Name))
 				return "Name is required.";
@@ -16,7 +16,7 @@ namespace MoneyManager.Core.Application.Categories
 			return ValidateParentAssignment(null, model.ParentCategory_I, existing);
 		}
 
-		public static string? ValidateUpdate(
+		public string? ValidateUpdate(
 			Category current,
 			UpdateCategoryModel model,
 			IReadOnlyList<Category> existing)
@@ -51,7 +51,7 @@ namespace MoneyManager.Core.Application.Categories
 			return null;
 		}
 
-		public static string? ValidateDelete(Category current, IReadOnlyList<Category> existing, bool inUse)
+		public string? ValidateDelete(Category current, IReadOnlyList<Category> existing, bool inUse)
 		{
 			if (current.Category_I == CategoryConstants.SplitCategoryId)
 				return "The Split category cannot be deleted.";

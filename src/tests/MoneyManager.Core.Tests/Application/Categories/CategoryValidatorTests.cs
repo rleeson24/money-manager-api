@@ -6,8 +6,10 @@ using Xunit;
 
 namespace MoneyManager.Core.Tests.Application.Categories;
 
-public class CategoryCommandValidationRulesTests
+public class CategoryValidatorTests
 {
+	private readonly CategoryValidator _validator = new();
+
 	private static Category Cat(int id, string name, int? parent = null, bool archived = false, bool hasChildren = false) =>
 		new()
 		{
@@ -24,7 +26,7 @@ public class CategoryCommandValidationRulesTests
 		var existing = new List<Category> { Cat(1, "Food") };
 		var model = new CreateCategoryModel { Name = "Groceries" };
 
-		Assert.Null(CategoryCommandValidationRules.ValidateCreate(model, existing));
+		Assert.Null(_validator.ValidateCreate(model, existing));
 	}
 
 	[Fact]
@@ -32,7 +34,7 @@ public class CategoryCommandValidationRulesTests
 	{
 		var model = new CreateCategoryModel { Name = "   " };
 
-		Assert.Equal("Name is required.", CategoryCommandValidationRules.ValidateCreate(model, Array.Empty<Category>()));
+		Assert.Equal("Name is required.", _validator.ValidateCreate(model, Array.Empty<Category>()));
 	}
 
 	[Fact]
@@ -40,7 +42,7 @@ public class CategoryCommandValidationRulesTests
 	{
 		var model = new CreateCategoryModel { Name = "Child", ParentCategory_I = 99 };
 
-		Assert.Equal("Parent category 99 not found.", CategoryCommandValidationRules.ValidateCreate(model, Array.Empty<Category>()));
+		Assert.Equal("Parent category 99 not found.", _validator.ValidateCreate(model, Array.Empty<Category>()));
 	}
 
 	[Fact]
@@ -55,7 +57,7 @@ public class CategoryCommandValidationRulesTests
 
 		Assert.Equal(
 			"Parent must be a top-level category (one level only).",
-			CategoryCommandValidationRules.ValidateCreate(model, existing));
+			_validator.ValidateCreate(model, existing));
 	}
 
 	[Fact]
@@ -67,7 +69,7 @@ public class CategoryCommandValidationRulesTests
 
 		Assert.Equal(
 			"The Split category cannot be archived.",
-			CategoryCommandValidationRules.ValidateUpdate(current, model, existing));
+			_validator.ValidateUpdate(current, model, existing));
 	}
 
 	[Fact]
@@ -84,7 +86,7 @@ public class CategoryCommandValidationRulesTests
 
 		Assert.Equal(
 			"Cannot assign a parent to a category that has children.",
-			CategoryCommandValidationRules.ValidateUpdate(current, model, existing));
+			_validator.ValidateUpdate(current, model, existing));
 	}
 
 	[Fact]
@@ -94,7 +96,7 @@ public class CategoryCommandValidationRulesTests
 
 		Assert.Equal(
 			"The Split category cannot be deleted.",
-			CategoryCommandValidationRules.ValidateDelete(current, Array.Empty<Category>(), inUse: false));
+			_validator.ValidateDelete(current, Array.Empty<Category>(), inUse: false));
 	}
 
 	[Fact]
@@ -108,7 +110,7 @@ public class CategoryCommandValidationRulesTests
 
 		Assert.Equal(
 			"Cannot delete a category that has children. Archive it or reassign children first.",
-			CategoryCommandValidationRules.ValidateDelete(existing[0], existing, inUse: false));
+			_validator.ValidateDelete(existing[0], existing, inUse: false));
 	}
 
 	[Fact]
@@ -118,7 +120,6 @@ public class CategoryCommandValidationRulesTests
 
 		Assert.Equal(
 			"Cannot delete a category that is used by expenses. Archive it instead.",
-			CategoryCommandValidationRules.ValidateDelete(current, Array.Empty<Category>(), inUse: true));
+			_validator.ValidateDelete(current, Array.Empty<Category>(), inUse: true));
 	}
-
 }

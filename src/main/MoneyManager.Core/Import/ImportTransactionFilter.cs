@@ -2,7 +2,7 @@ using MoneyManager.Core.Models;
 
 namespace MoneyManager.Core.Import
 {
-	public static class ImportFilterRules
+	public class ImportTransactionFilter : IImportTransactionFilter
 	{
 		private static readonly string[] ExcludedDescriptionFragments =
 		[
@@ -11,7 +11,7 @@ namespace MoneyManager.Core.Import
 			"Discover (CONA)  NET/MOBILE ROBERT LEESON"
 		];
 
-		public static IReadOnlyList<BankTransaction> RemoveTransfersAndPayments(IReadOnlyList<BankTransaction> transactions)
+		public IReadOnlyList<BankTransaction> RemoveTransfersAndPayments(IReadOnlyList<BankTransaction> transactions)
 		{
 			return transactions.Where(t => !IsExcluded(t.Description)).ToList();
 		}
