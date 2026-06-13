@@ -1,0 +1,20 @@
+---
+description: Step-by-step checklist for new endpoints, MediatR handlers, persistence, and tests
+alwaysApply: true
+---
+
+# New feature / endpoint checklist
+
+Use this order so new work stays consistent with the solution. Details: `.cursor/rules/codebase-architecture-style.mdc`.
+
+1. **Models** – Input DTOs: `Models.Input.*Model` (or `Bulk*Request`). Domain entity in `Models/` if new. Result type in `Models/` or `Repositories/` if the handler needs success/not-found/conflict discrimination (e.g. `UpdateExpenseResult`, `CategoryMutationResult`).
+2. **Repository interface** – Add or extend `I*Repository` in `Core/Repositories/`.
+3. **MediatR handler** – Add command/query record + handler + FluentValidation validator in **one file** under `Core/Application/{Area}/Commands/` or `Queries/`. Handlers inject repositories; pass `Guid userId` from command/query for user-scoped operations.
+4. **Persistence** – Implement in `Data/Repositories/` (SQL via `DbExecutor` + mappers, and `InMemory*Repository` for dev). Register in `Data.DependencyInjectionExtensions.AddDataServices` in both SQL and in-memory branches.
+5. **Import parsers (if needed)** – Add parser in `MoneyManager.Import/Parsers/`, register in `Import.DependencyInjectionExtensions.AddImportParsers`.
+6. **API** – Add action on a thin controller: `[ApiController]` / `[Route]`, `[Authorize(AuthenticationSchemes = AuthSchemes.Microsoft)]`, `[RequireUserId]` for user-scoped resources, `IMediator` via constructor, `CancellationToken` on actions. Resolve `userId` via `UserIdHttpContext.GetRequired` when scoped. Map results with `ApiResults.*` or `Ok`/`CreatedAtAction`/`NoContent`.
+7. **Tests** – Use case: `.cursor/rules/use-case-test-structure.mdc`. Mappers / sync helpers: `.cursor/rules/test-base-sync-test-structure.mdc`.
+
+**Do not** put business rules, ownership checks, or orchestration in controllers—only in handlers, validators, repositories, and shared domain helpers.
+
+**MediatR auto-registers handlers** — no manual handler registration in `AddCoreServices`. Only add pipeline behaviors or validators there if introducing new cross-cutting concerns.

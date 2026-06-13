@@ -1,0 +1,4 @@
+Transaction Date,Transaction Description,Transaction Type,Debit,Credit,Balance
+01/10/2025,Interest Payment,Interest,,5.25,1005.25
+01/11/2025,Online Transfer,Transfer,200.00,,805.25
+not-a-date,Bad Date Row,Transfer,10.00,,795.25

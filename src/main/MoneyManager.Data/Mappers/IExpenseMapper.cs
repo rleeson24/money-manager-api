@@ -1,10 +1,10 @@
+using System.Data.Common;
 using MoneyManager.Data.Models;
-using Microsoft.Data.SqlClient;
 
 namespace MoneyManager.Data.Mappers
 {
 	public interface IExpenseMapper
 	{
-		ValueTask<DbExpense> FromDbReader(SqlDataReader reader);
+		ValueTask<DbExpense> FromDbReader(DbDataReader reader);
 	}
 }

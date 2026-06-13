@@ -1,16 +1,16 @@
+using System.Data.Common;
 using MoneyManager.Data.Models;
-using Microsoft.Data.SqlClient;
 
 namespace MoneyManager.Data.Mappers
 {
 	public interface IPaymentMethodMapper
 	{
-		Task<DbPaymentMethod> FromDbReader(SqlDataReader reader);
+		Task<DbPaymentMethod> FromDbReader(DbDataReader reader);
 	}
 
 	public class PaymentMethodMapper : IPaymentMethodMapper
 	{
-		public async Task<DbPaymentMethod> FromDbReader(SqlDataReader reader)
+		public async Task<DbPaymentMethod> FromDbReader(DbDataReader reader)
 		{
 			return new DbPaymentMethod
 			{

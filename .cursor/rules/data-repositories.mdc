@@ -1,0 +1,47 @@
+---
+description: Repository implementations — DbExecutor, SQL, in-memory, registration
+globs: "**/MoneyManager.Data/**/*.cs"
+alwaysApply: false
+---
+
+# Data layer (`MoneyManager.Data`)
+
+## Responsibilities
+
+Implement **`Core.Repositories`** interfaces. **No business rules** (ownership, tree validation, "can user do X?")—those belong in Core handlers, validators, or shared domain helpers (e.g. `CategoryCommandValidationRules`).
+
+## Persistence Modes
+
+`DependencyInjectionExtensions.AddDataServices` selects mode (priority order):
+
+1. **In-memory** — `Data:UseInMemoryDatabase=true` AND no connection string AND NOT under Aspire:
+   - `InMemoryStore` (singleton) + `InMemory*Repository` (scoped)
+
+2. **Aspire SQL** — `AspireOrchestrationDetector.IsRunningUnderAspire()`:
+   - SQL repositories + `DbConnectionFactory` + `DbExecutor` + `AspireSqlDevelopmentBootstrap` (DDL + seed)
+
+3. **Production SQL** — connection string required; throws if missing
+
+When adding a new repository, register **both** SQL and in-memory implementations in the appropriate branches.
+
+## SQL Access
+
+- Inject **`DbExecutor`** and use its async methods (`ExecuteReader`, `ExecuteNonQuery`, `ExecuteScalar`) with **parameterized** `SqlParameter` values.
+- Do **not** introduce Entity Framework Core `DbContext` for this solution's main persistence path.
+- Keep SQL and parameters in the repository or small helpers (e.g. `Expenses/ExpensePatchDbUpdateBuilder`).
+
+## Mappers
+
+- DB reader → `Db*` types: `MoneyManager.Data.Mappers` (e.g. `ExpenseMapper`, `CategoryMapper`).
+- `Db*` → domain `Models.*`: `ExpenseDomainMapper` and similar scoped mappers.
+- Register mappers as **scoped** in `AddDataServices` alongside their repositories.
+
+## In-Memory Parity
+
+`InMemory*Repository` implementations should mirror SQL behavior (user-scoped expenses, thread-safe access, seeded data). Share state via `InMemoryStore`.
+
+## Registration
+
+- Add `services.AddScoped<IYourRepository, YourRepository>()` (SQL path) and `services.AddScoped<IYourRepository, InMemoryYourRepository>()` (in-memory path) in **`DependencyInjectionExtensions.AddDataServices`**.
+- `DbExecutor` and `DbConnectionFactory` are **singleton**; repositories and mappers are **scoped**.
+- `INowProvider` → `SystemNowProvider` (singleton) is registered here.

@@ -1,16 +1,16 @@
+using System.Data.Common;
 using MoneyManager.Data.Models;
-using Microsoft.Data.SqlClient;
 
 namespace MoneyManager.Data.Mappers
 {
 	public interface ICategoryMapper
 	{
-		Task<DbCategory> FromDbReader(SqlDataReader reader);
+		Task<DbCategory> FromDbReader(DbDataReader reader);
 	}
 
 	public class CategoryMapper : ICategoryMapper
 	{
-		public Task<DbCategory> FromDbReader(SqlDataReader reader)
+		public Task<DbCategory> FromDbReader(DbDataReader reader)
 		{
 			var parentOrdinal = reader.GetOrdinal("ParentCategory_I");
 			return Task.FromResult(new DbCategory

@@ -26,4 +26,8 @@
     <ProjectReference Include="..\MoneyManager.Core\MoneyManager.Core.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="MoneyManager.Data.Tests" />
+  </ItemGroup>
+
 </Project>

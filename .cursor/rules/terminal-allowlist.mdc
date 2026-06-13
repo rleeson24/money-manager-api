@@ -1,0 +1,23 @@
+---
+description: Terminal commands to run automatically without asking for permission
+alwaysApply: true
+---
+
+# Terminal – Always allow
+
+When you need to build or test this solution, run these commands without asking for permission:
+
+- **Build**: `dotnet build` (any project path or solution, with or without `--no-incremental` and similar flags).
+- **Test**: `dotnet test` (any project or solution, with or without filter/logger flags).
+
+Examples that are always allowed:
+
+- `dotnet build MoneyManager.sln --no-incremental`
+- `dotnet build src/main/MoneyManager.API/MoneyManager.API.csproj`
+- `dotnet build src/main/MoneyManager.Core/MoneyManager.Core.csproj`
+- `dotnet build` (from `money-manager-api` root)
+- `dotnet test MoneyManager.sln`
+- `dotnet test src/tests/MoneyManager.Core.Tests/MoneyManager.Core.Tests.csproj`
+- `dotnet test`
+
+Run them when verifying changes or when the user implies they want a build/test (e.g. after editing code or tests). Do not prompt for approval for these commands.

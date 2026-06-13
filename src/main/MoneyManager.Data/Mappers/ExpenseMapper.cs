@@ -1,12 +1,12 @@
+using System.Data.Common;
 using MoneyManager.Core.Constants;
 using MoneyManager.Data.Models;
-using Microsoft.Data.SqlClient;
 
 namespace MoneyManager.Data.Mappers
 {
 	public class ExpenseMapper : IExpenseMapper
 	{
-		public async ValueTask<DbExpense> FromDbReader(SqlDataReader reader)
+		public async ValueTask<DbExpense> FromDbReader(DbDataReader reader)
 		{
 			var paymentMethodOrdinal = reader.GetOrdinal("PaymentMethod");
 			var categoryOrdinal = reader.GetOrdinal("Category");

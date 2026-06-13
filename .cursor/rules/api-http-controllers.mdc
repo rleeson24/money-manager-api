@@ -1,0 +1,57 @@
+---
+description: ASP.NET Core controller conventions — routing, MediatR dispatch, ApiResults mapping
+globs: "**/MoneyManager.API/Controllers/**/*.cs"
+alwaysApply: false
+---
+
+# API controllers (MoneyManager.API)
+
+## Role
+
+Controllers translate HTTP to MediatR commands/queries and map handler results to `IActionResult`. **No business logic** (validation that belongs in handlers/validators, authorization decisions beyond attributes, orchestration).
+
+## Conventions
+
+- `[ApiController]` and explicit `[Route("api/…")]` in kebab-case (e.g. `api/expenses`, `api/payment-methods`).
+- Inject **`IMediator`** via constructor (all current controllers use this pattern).
+- Include **`CancellationToken cancellationToken`** on actions and pass it to `_mediator.Send(…, cancellationToken)`.
+- Dispatch with `_mediator.Send(new SomeCommand(…), cancellationToken)` or `_mediator.Send(new SomeQuery(…), cancellationToken)`.
+- Map results with **`ApiResults.*`** helpers or direct `Ok` / `CreatedAtAction` / `NoContent` for success paths (see `MoneyManager.API.Infrastructure.ApiResults`).
+
+```csharp
+var result = await _mediator.Send(new UpdateExpenseCommand(id, userId, model), cancellationToken);
+if (result.IsSuccess) return Ok(result.Updated);
+if (result.IsConflict) return ApiResults.Conflict("The expense was modified by another request.", result.ConflictCurrent);
+return ApiResults.NotFound("Expense not found.");
+```
+
+## Auth
+
+- `[Authorize(AuthenticationSchemes = AuthSchemes.Microsoft)]` on controllers (fallback policy also requires authenticated user).
+- **User-scoped endpoints:** add `[RequireUserId]` on the controller; get `Guid userId` from `UserIdHttpContext.GetRequired(HttpContext)` and pass into commands/queries.
+- **Global endpoints:** omit `[RequireUserId]` (e.g. categories, payment methods); add an XML summary comment explaining the resource is shared across users.
+- Do not parse JWT claims in controllers; `IResolveUserId` / `RequireUserIdFilter` handle identity resolution.
+
+## ApiResults Helpers
+
+| Helper | Status | Use when |
+|--------|--------|----------|
+| `ValidationError(string)` | 400 | Single validation message from handler result |
+| `ValidationError(IDictionary<…>)` | 400 | Field-level errors |
+| `NotFound(string)` | 404 | Entity not found |
+| `Conflict(string, extensions?)` | 409 | Optimistic concurrency conflict |
+| `Unauthorized(string)` | 401 | Identity not resolved |
+| `UnexpectedFailure(string?)` | 500 | Unexpected null / failure with no specific status |
+
+## Controller Pre-Processing
+
+Some HTTP concerns stay in the controller when they are transport-specific (not business logic):
+
+- **JSON patch parsing:** `ExpensePatchParser.Parse(jsonElement)` in `PatchExpense` before sending `PatchExpenseCommand`.
+- **Bulk request shaping:** map `BulkUpdateRequest` fields to `ExpenseFieldNames` dictionary before sending command.
+
+Keep orchestration and business rules in handlers/repositories.
+
+## Middleware Pipeline
+
+Order in `Program.cs`: exception handler → Swagger (dev) → CORS → `RequestLoggingMiddleware` → authentication → authorization → `MapDefaultEndpoints` → `MapControllers`.

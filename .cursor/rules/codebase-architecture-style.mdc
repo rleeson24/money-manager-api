@@ -1,0 +1,109 @@
+---
+description: money-manager API codebase architecture, layers, and coding style
+alwaysApply: true
+---
+
+# money-manager API – Architecture & Style
+
+## Project Structure
+
+```
+money-manager-api/
+├── MoneyManager.sln
+├── MoneyManager.AppHost/              # .NET Aspire orchestrator (SQL + API + client)
+├── MoneyManager.ServiceDefaults/      # OpenTelemetry, health checks, service discovery
+├── Database/                          # SQL scripts (CreateTables.sql, seeds)
+└── src/main/
+    ├── MoneyManager.API/              # Controllers, auth, middleware, filters
+    ├── MoneyManager.Core/             # MediatR handlers, models, repository interfaces
+    ├── MoneyManager.Data/             # SQL + in-memory repositories, DbExecutor
+    └── MoneyManager.Import/           # Bank CSV/file parsers (referenced by API)
+```
+
+**Target framework:** `net10.0`. No Entity Framework Core. No separate Providers/Emails/Utilities projects.
+
+## Architectural Layers
+
+1. **API** → thin controllers that dispatch MediatR commands/queries. Auth, filters, middleware, exception handler. No business logic. See `.cursor/rules/api-http-controllers.mdc` when editing controllers.
+2. **Core** → MediatR handlers (`Application/{Area}/Commands|Queries`), repository **interfaces** in `Repositories`, domain models in `Models` and `Models.Input`, shared domain helpers (e.g. `Expenses/`, `Import/`). MediatR auto-registers handlers; only pipeline behaviors are registered in DI.
+3. **Data** → repository implementations in `Repositories` (SQL or in-memory). **SQL Server via `DbExecutor`** (parameterized SQL, `Microsoft.Data.SqlClient`). Persistence types in `Models/Db*`, row mappers in `Mappers`. When editing Data, see `.cursor/rules/data-repositories.mdc`.
+4. **Import** → bank-specific CSV parsers implementing `Core.Import.ITransactionFileParser`. Registered via `MoneyManager.Import.DependencyInjectionExtensions.AddImportParsers()` in `Program.cs`.
+
+## MediatR CQRS Pattern
+
+- Command/query record, handler, and FluentValidation validator are **co-located in one file** (e.g. `CreateCategoryCommand.cs`).
+- File naming: `{Verb}{Entity}Command.cs` or `Get{Entity}Query.cs` under `Application/{Area}/Commands|Queries/`.
+- Handlers implement `IRequestHandler<TRequest, TResponse>` and inject `I*Repository` (and `ILogger` as needed).
+- MediatR pipeline behaviors: `ValidationBehavior` (throws `ValidationException` → 400) and `LoggingBehavior`.
+
+```csharp
+// Command + handler + validator (one file)
+public record CreateCategoryCommand(CreateCategoryModel Model) : IRequest<CategoryMutationResult>;
+
+public class CreateCategoryHandler : IRequestHandler<CreateCategoryCommand, CategoryMutationResult> { ... }
+
+public class CreateCategoryCommandValidator : AbstractValidator<CreateCategoryCommand> { ... }
+
+// Controller
+var result = await _mediator.Send(new CreateCategoryCommand(model), cancellationToken);
+if (result.ValidationError != null) return ApiResults.ValidationError(result.ValidationError);
+return CreatedAtAction(nameof(GetCategory), new { id = result.Category.Category_I }, result.Category);
+```
+
+## User Scoping
+
+- **User-scoped resources** (expenses, imports): controller has `[RequireUserId]`; resolve `Guid userId` via `UserIdHttpContext.GetRequired(HttpContext)` and pass into command/query.
+- **Global resources** (categories, payment methods): omit `[RequireUserId]`; document intent in controller XML summary.
+- Do **not** resolve user identity inside handlers from `HttpContext` — pass `userId` explicitly from the controller.
+
+## Repository & Mapper Conventions
+
+- Interface in `Core.Repositories` (e.g. `IExpenseRepository`), implementation in `Data.Repositories`, registered in `MoneyManager.Data.DependencyInjectionExtensions.AddDataServices`.
+- Domain entities: `Core.Models` (e.g. `Expense`, `Category`). DB row types: `Data.Models.Db*` (e.g. `DbExpense`).
+- SQL repositories inject `DbExecutor` and mappers (`IExpenseMapper`, `ExpenseDomainMapper`, etc.). Mappers are **scoped** services.
+- In-memory mode: `InMemoryStore` (singleton) + `InMemory*Repository` (scoped) when `Data:UseInMemoryDatabase=true` and no connection string and not under Aspire.
+
+## Configuration
+
+- `DataOptions` bound from `Data` section in `AddDataServices` (`UseInMemoryDatabase`, `AspireSeedUserId`).
+- `AzureAd:*` for authentication. `ConnectionStrings:DefaultConnection` for SQL.
+- `AllowedOrigins` (semicolon-separated) for CORS in non-local environments.
+- Optional: `KeyVaultName`, `DetailedErrors`, `ApplicationInsights:ConnectionString`.
+- Config sources in `Program.cs`: env vars → user secrets → optional Azure Key Vault.
+
+## Error Handling
+
+| Layer | Mechanism | HTTP mapping |
+|-------|-----------|--------------|
+| FluentValidation (MediatR pipeline) | `ValidationException` | Global exception handler → 400 `ValidationProblemDetails` |
+| Controller pre-checks | `ApiResults.ValidationError(...)` | 400 ProblemDetails |
+| Expected not-found/conflict | Handler/repository result types → controller branches | 404/409 via `ApiResults` |
+| Unhandled exceptions | `UseExceptionHandler` in `Program.cs` | 500; details only in Development / `DetailedErrors=true` |
+
+- Use result types (e.g. `UpdateExpenseResult`, `CategoryMutationResult`) for expected failures; do not throw for normal flow.
+- **Concurrency:** optimistic concurrency via `ModifiedDateTime`; conflicts return `UpdateExpenseResult.ConflictCurrent` → `ApiResults.Conflict(...)`.
+
+## Naming & Style
+
+- Private fields: `_camelCase`.
+- Input DTOs: `*Model` in `Models.Input`. Bulk payloads: `Bulk*Request` in `Models.Input`.
+- Domain entities: plain names in `Models` (e.g. `Expense`). Primary keys: `{Entity}_I` suffix (e.g. `Expense_I`).
+- Namespaces: match folder structure (e.g. `MoneyManager.Core.Application.Expenses.Commands`).
+- API routes: kebab-case plural (e.g. `api/payment-methods`, `api/expenses`).
+- Auth scheme: `AuthSchemes.Microsoft` — do not use raw `"Bearer"` strings.
+
+## Dependency Registration
+
+- `Program.cs`: `AddServiceDefaults()`, `AddSqlServerClient("DefaultConnection")`, `AddCoreServices()`, `AddDataServices(configuration)`, `AddImportParsers()`.
+- `AddCoreServices`: MediatR assembly scan, FluentValidation assembly scan, `LoggingBehavior` + `ValidationBehavior` pipeline behaviors. **No manual handler registration.**
+- `AddDataServices`: in-memory vs SQL vs Aspire bootstrap (see `Data/DependencyInjectionExtensions.cs`).
+- `DbExecutor` and `DbConnectionFactory` are **singleton**; repositories and mappers are **scoped**.
+
+## Aspire / ServiceDefaults
+
+- **AppHost** provisions SQL Server container, runs API with `WithReference(sql)` and `Data__AspireOrchestrated=true`, runs Vite client.
+- **ServiceDefaults** provides OpenTelemetry, health checks (`/health`, `/alive` in Development), HTTP resilience, service discovery via `AddServiceDefaults()` / `MapDefaultEndpoints()`.
+
+## New Features
+
+Use `.cursor/rules/new-feature-workflow.mdc` as the checklist when adding endpoints or capabilities (models → repository → handler → controller).

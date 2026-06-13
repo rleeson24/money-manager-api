@@ -1,0 +1,5 @@
+Description,Category,Type,Date,Deposits,Withdrawals,Transaction Amount,Balance
+Payroll Deposit,Salary,Deposit,02/01/2025,2000.00,,2000.00,5000.00
+ATM Withdrawal,ATM,Withdrawal,02/02/2025,,100.00,(100.00),4900.00
+Transfer In,Transfer,Transfer,02/03/2025,50.00,25.00,,4925.00
+Bad Date,,Other,not-a-date,10.00,,,4935.00

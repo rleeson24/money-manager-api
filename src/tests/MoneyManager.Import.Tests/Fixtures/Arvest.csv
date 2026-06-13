@@ -1,0 +1,5 @@
+Account,Date,Pending?,Description,Category,Check,Credit,Debit
+Checking,01/15/2025,,Direct Deposit Payroll,Salary,,1500.00,
+Checking,01/16/2025,,Grocery Store,Groceries,,,-45.67
+Checking,not-a-date,,Bad Date Row,Other,,,-10.00
+Checking,01/18/2025,,Coffee Shop,Dining,,,-5.50

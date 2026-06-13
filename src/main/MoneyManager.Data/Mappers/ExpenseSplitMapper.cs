@@ -1,11 +1,11 @@
+using System.Data.Common;
 using MoneyManager.Data.Models;
-using Microsoft.Data.SqlClient;
 
 namespace MoneyManager.Data.Mappers
 {
 	public class ExpenseSplitMapper : IExpenseSplitMapper
 	{
-		public async Task<DbExpenseSplit> FromDbReader(SqlDataReader reader)
+		public async Task<DbExpenseSplit> FromDbReader(DbDataReader reader)
 		{
 			return await Task.FromResult(new DbExpenseSplit
 			{
