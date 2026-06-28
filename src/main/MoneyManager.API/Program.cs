@@ -23,8 +23,8 @@ using System.Text.Json.Serialization;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.AddServiceDefaults();
+builder.AddSqlServerClient("DefaultConnection", settings => settings.DisableHealthChecks = true);
 builder.AddMoneyManagerHealthChecks();
-builder.AddSqlServerClient("DefaultConnection");
 var services = builder.Services;
 
 builder.Configuration

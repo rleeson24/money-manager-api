@@ -22,11 +22,12 @@ public static class HealthCheckExtensions
 			return builder;
 		}
 
-		var includeDatabaseInReadiness = configuration.GetValue("HealthChecks:IncludeDatabaseInReadiness", false);
+		var includeDatabaseInReadiness = runningUnderAspire
+			|| configuration.GetValue("HealthChecks:IncludeDatabaseInReadiness", false);
 		var tags = includeDatabaseInReadiness ? new[] { "db", "ready" } : new[] { "db" };
 
 		builder.Services.AddHealthChecks()
-			.AddCheck<SqlConnectionHealthCheck>("sqlserver", tags: tags);
+			.AddCheck<SqlConnectionHealthCheck>("sqlserver-database", tags: tags);
 
 		return builder;
 	}
