@@ -3,6 +3,7 @@ using Azure.Extensions.AspNetCore.Configuration.Secrets;
 using Azure.Identity;
 using Azure.Security.KeyVault.Secrets;
 using MoneyManager.API.Configuration;
+using MoneyManager.API.Health;
 using MoneyManager.API.Middleware;
 using MoneyManager.API.Utilities;
 using FluentValidation;
@@ -22,6 +23,7 @@ using System.Text.Json.Serialization;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.AddServiceDefaults();
+builder.AddMoneyManagerHealthChecks();
 builder.AddSqlServerClient("DefaultConnection");
 var services = builder.Services;
 

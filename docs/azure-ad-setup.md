@@ -99,4 +99,4 @@ Check API logs for `Azure AD JWT authentication failed.` Common causes:
 | Token acquired but API still 401 | Restart API after changing secrets; confirm `Authorization: Bearer` header is sent |
 | Client redirects to login repeatedly | Confirm redirect URI in Azure matches browser URL exactly |
 
-Health checks (`/health`, `/alive`) remain anonymous in Development for Aspire probes.
+Health checks remain anonymous in all environments. For platforms that probe frequently (App Service, load balancers), use `/alive` or `/health/live` so an auto-pause SQL database is not woken on every probe. Use `/health` or `/health/ready` for readiness; `/health/db` verifies database connectivity explicitly.

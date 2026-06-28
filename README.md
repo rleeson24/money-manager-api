@@ -55,6 +55,18 @@ Configure the following settings:
 
 - `GET /api/payment-methods` - Get all payment methods
 
+### Health
+
+Anonymous endpoints for platform probes (no Azure AD token required):
+
+| Endpoint | Purpose | Hits database |
+|----------|---------|---------------|
+| `/alive`, `/health/live` | Liveness — process is running | No |
+| `/health`, `/health/ready` | Readiness — app can accept traffic | Only if `HealthChecks:IncludeDatabaseInReadiness` is `true` |
+| `/health/db` | Explicit SQL connectivity check | Yes (wakes auto-pause SQL) |
+
+For Azure App Service or other frequent probes, point the health check path at **`/alive`** so an idle auto-pause database stays asleep.
+
 ## Security
 
 The API uses Azure AD (Microsoft Entra ID) authentication via Microsoft Identity Web. All endpoints require authentication except health checks.

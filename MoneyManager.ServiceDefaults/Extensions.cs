@@ -1,6 +1,7 @@
 using Azure.Monitor.OpenTelemetry.AspNetCore;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Logging;
@@ -18,7 +19,10 @@ namespace Microsoft.Extensions.Hosting;
 public static class Extensions
 {
     private const string HealthEndpointPath = "/health";
+    private const string ReadinessEndpointPath = "/health/ready";
     private const string AlivenessEndpointPath = "/alive";
+    private const string LivenessEndpointPath = "/health/live";
+    private const string DatabaseEndpointPath = "/health/db";
 
     public static TBuilder AddServiceDefaults<TBuilder>(this TBuilder builder) where TBuilder : IHostApplicationBuilder
     {
@@ -68,9 +72,7 @@ public static class Extensions
                 tracing.AddSource(builder.Environment.ApplicationName)
                     .AddAspNetCoreInstrumentation(options =>
                         // Exclude health check requests from tracing
-                        options.Filter = context =>
-                            !context.Request.Path.StartsWithSegments(HealthEndpointPath)
-                            && !context.Request.Path.StartsWithSegments(AlivenessEndpointPath))
+                        options.Filter = context => !IsHealthCheckPath(context.Request.Path))
                     .AddHttpClientInstrumentation()
                     .AddSqlClientInstrumentation(options =>
                     {
@@ -107,28 +109,40 @@ public static class Extensions
     public static TBuilder AddDefaultHealthChecks<TBuilder>(this TBuilder builder) where TBuilder : IHostApplicationBuilder
     {
         builder.Services.AddHealthChecks()
-            // Add a default liveness check to ensure app is responsive
-            .AddCheck("self", () => HealthCheckResult.Healthy(), ["live"]);
+            // Process is running; safe for frequent probes (does not touch dependencies).
+            .AddCheck("self", () => HealthCheckResult.Healthy(), ["live", "ready"]);
 
         return builder;
     }
 
     public static WebApplication MapDefaultEndpoints(this WebApplication app)
     {
-        // Adding health checks endpoints to applications in non-development environments has security implications.
-        // See https://aka.ms/dotnet/aspire/healthchecks for details before enabling these endpoints in non-development environments.
-        if (app.Environment.IsDevelopment())
+        // Health endpoints are anonymous so platform probes work without Azure AD tokens.
+        // Point load balancers and App Service at /alive or /health/live so auto-pause SQL is not woken on every probe.
+        // Use /health/db when you explicitly want to verify database connectivity (that call will wake a paused database).
+        var readinessOptions = new HealthCheckOptions
         {
-            // All health checks must pass for app to be considered ready to accept traffic after starting
-            app.MapHealthChecks(HealthEndpointPath).AllowAnonymous();
+            Predicate = registration => registration.Tags.Contains("ready")
+        };
+        var livenessOptions = new HealthCheckOptions
+        {
+            Predicate = registration => registration.Tags.Contains("live")
+        };
+        var databaseOptions = new HealthCheckOptions
+        {
+            Predicate = registration => registration.Tags.Contains("db")
+        };
 
-            // Only health checks tagged with the "live" tag must pass for app to be considered alive
-            app.MapHealthChecks(AlivenessEndpointPath, new HealthCheckOptions
-            {
-                Predicate = r => r.Tags.Contains("live")
-            }).AllowAnonymous();
-        }
+        app.MapHealthChecks(HealthEndpointPath, readinessOptions).AllowAnonymous();
+        app.MapHealthChecks(ReadinessEndpointPath, readinessOptions).AllowAnonymous();
+        app.MapHealthChecks(AlivenessEndpointPath, livenessOptions).AllowAnonymous();
+        app.MapHealthChecks(LivenessEndpointPath, livenessOptions).AllowAnonymous();
+        app.MapHealthChecks(DatabaseEndpointPath, databaseOptions).AllowAnonymous();
 
         return app;
     }
+
+    private static bool IsHealthCheckPath(PathString path) =>
+        path.StartsWithSegments(HealthEndpointPath)
+        || path.StartsWithSegments(AlivenessEndpointPath);
 }
