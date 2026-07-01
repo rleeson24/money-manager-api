@@ -16,6 +16,12 @@ namespace MoneyManager.Core.Repositories
 		Task<bool> BulkUpdate(IEnumerable<int> ids, Guid userId, Dictionary<string, object?> updates);
 		Task<bool> BulkDelete(IEnumerable<int> ids, Guid userId);
 		Task<IReadOnlyList<Expense>> ListForUserInDateRange(Guid userId, DateTime fromDate, DateTime toDate, int? paymentMethodId = null);
+		Task<IReadOnlyList<Expense>> SearchForUser(
+			Guid userId,
+			DateTime fromDate,
+			DateTime toDate,
+			string? search,
+			IReadOnlyList<int>? categoryIds);
 		Task<IReadOnlyList<LastImportDatesForPaymentMethod>> GetLastImportDates(Guid userId, IReadOnlyList<int> paymentMethodIds);
 	}
 }

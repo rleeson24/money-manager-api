@@ -200,6 +200,55 @@ namespace MoneyManager.Data.Repositories
 			return result.Select(_domainMapper.ToExpense).ToList();
 		}
 
+		public async Task<IReadOnlyList<Expense>> SearchForUser(
+			Guid userId,
+			DateTime fromDate,
+			DateTime toDate,
+			string? search,
+			IReadOnlyList<int>? categoryIds)
+		{
+			var result = new List<DbExpense>();
+			var sql = "SELECT * FROM Expenses WHERE UserId = @UserId AND ExpenseDate >= @FromDate AND ExpenseDate <= @ToDate";
+			var parameters = new List<SqlParameter>
+			{
+				new SqlParameter("@UserId", userId),
+				new SqlParameter("@FromDate", fromDate.Date),
+				new SqlParameter("@ToDate", toDate.Date)
+			};
+
+			if (!string.IsNullOrWhiteSpace(search))
+			{
+				sql += " AND Expense LIKE @Search ESCAPE '\\'";
+				parameters.Add(new SqlParameter("@Search", $"%{EscapeLikePattern(search)}%"));
+			}
+
+			if (categoryIds is { Count: > 0 })
+			{
+				var placeholders = string.Join(",", categoryIds.Select((_, i) => $"@Cat{i}"));
+				sql += $" AND Category IN ({placeholders})";
+				for (var i = 0; i < categoryIds.Count; i++)
+					parameters.Add(new SqlParameter($"@Cat{i}", categoryIds[i]));
+			}
+
+			sql += " ORDER BY ExpenseDate DESC";
+
+			await _db.ExecuteReader(sql, parameters, async sqlReader =>
+			{
+				while (await sqlReader.ReadAsync())
+					result.Add(await _readerMapper.FromDbReader(sqlReader));
+			});
+			return result.Select(_domainMapper.ToExpense).ToList();
+		}
+
+		private static string EscapeLikePattern(string value)
+		{
+			return value
+				.Replace("\\", "\\\\")
+				.Replace("%", "\\%")
+				.Replace("_", "\\_")
+				.Replace("[", "\\[");
+		}
+
 		public async Task<IReadOnlyList<LastImportDatesForPaymentMethod>> GetLastImportDates(Guid userId, IReadOnlyList<int> paymentMethodIds)
 		{
 			if (paymentMethodIds.Count == 0)

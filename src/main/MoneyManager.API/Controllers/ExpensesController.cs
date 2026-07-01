@@ -31,11 +31,26 @@ namespace MoneyManager.API.Controllers
 			[FromQuery] int? paymentMethod = null,
 			[FromQuery] bool? datePaidNull = null,
 			[FromQuery] string? currency = null,
+			[FromQuery] DateTime? fromDate = null,
+			[FromQuery] DateTime? toDate = null,
+			[FromQuery] string? search = null,
+			[FromQuery] int? category = null,
+			[FromQuery] bool includeChildCategories = false,
 			CancellationToken cancellationToken = default)
 		{
 			var userId = UserIdHttpContext.GetRequired(HttpContext);
 			var expenses = await _mediator.Send(
-				new GetExpensesQuery(userId, month, paymentMethod, datePaidNull, currency),
+				new GetExpensesQuery(
+					userId,
+					month,
+					paymentMethod,
+					datePaidNull,
+					currency,
+					fromDate,
+					toDate,
+					search,
+					category,
+					includeChildCategories),
 				cancellationToken);
 
 			return Ok(expenses);

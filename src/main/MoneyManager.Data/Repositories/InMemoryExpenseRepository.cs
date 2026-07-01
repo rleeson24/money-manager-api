@@ -136,6 +136,27 @@ namespace MoneyManager.Data.Repositories
 			return Task.FromResult<IReadOnlyList<Expense>>(list);
 		}
 
+		public Task<IReadOnlyList<Expense>> SearchForUser(
+			Guid userId,
+			DateTime fromDate,
+			DateTime toDate,
+			string? search,
+			IReadOnlyList<int>? categoryIds)
+		{
+			var all = _store.GetExpensesFiltered(userId, null, null, null);
+			var categorySet = categoryIds is { Count: > 0 } ? categoryIds.ToHashSet() : null;
+			var searchTerm = search?.Trim();
+
+			var list = all
+				.Where(e => e.ExpenseDate.Date >= fromDate.Date && e.ExpenseDate.Date <= toDate.Date)
+				.Where(e => string.IsNullOrWhiteSpace(searchTerm)
+					|| (e.ExpenseDescription?.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ?? false))
+				.Where(e => categorySet == null || (e.Category.HasValue && categorySet.Contains(e.Category.Value)))
+				.OrderByDescending(e => e.ExpenseDate)
+				.ToList();
+			return Task.FromResult<IReadOnlyList<Expense>>(list);
+		}
+
 		public Task<IReadOnlyList<LastImportDatesForPaymentMethod>> GetLastImportDates(Guid userId, IReadOnlyList<int> paymentMethodIds)
 		{
 			var all = _store.GetExpensesFiltered(userId, null, null, null);
