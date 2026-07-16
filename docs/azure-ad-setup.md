@@ -81,6 +81,7 @@ When running via `MoneyManager.AppHost`:
 
 - Client runs at `https://localhost:5173` (fixed in AppHost).
 - Add that redirect URI in Azure AD.
+- Also register **`https://localhost:5173/auth/redirect.html`** as a redirect URI. MSAL uses this blank page for silent token refresh (it must not load the React app in a hidden iframe).
 - `AllowedOrigins` must include `https://localhost:5173`.
 - Azure AD values can live in user secrets or `appsettings.Development.json` / `appsettings.Local.json`.
 
@@ -98,5 +99,6 @@ Check API logs for `Azure AD JWT authentication failed.` Common causes:
 | `audience ... is invalid` | Set `AzureAd:Audience` to `api://{client-id}` in user secrets |
 | Token acquired but API still 401 | Restart API after changing secrets; confirm `Authorization: Bearer` header is sent |
 | Client redirects to login repeatedly | Confirm redirect URI in Azure matches browser URL exactly |
+| `timed_out` / silent auth fails | Register `{origin}/auth/redirect.html` in Azure AD; ensure Cloudflare `_redirects` serves that file without rewriting to `index.html` |
 
 Health checks remain anonymous in all environments. For platforms that probe frequently (App Service, load balancers), use `/alive` or `/health/live` so an auto-pause SQL database is not woken on every probe. Use `/health` or `/health/ready` for readiness; `/health/db` verifies database connectivity explicitly.
