@@ -50,6 +50,20 @@ public class ImportControllerTests
 	}
 
 	[Fact]
+	public async Task ImportFile_WhenNotCsv_ReturnsValidationError()
+	{
+		var file = CreateFormFile("transactions.txt", "not,a,csv", "text/plain");
+
+		var result = await _controller.ImportFile(file, "csv", ImportSource.DiscoverChecking, 5, CancellationToken.None);
+
+		var badRequest = Assert.IsType<BadRequestObjectResult>(result);
+		Assert.NotNull(badRequest.Value);
+		_mediator.Verify(
+			m => m.Send(It.IsAny<ImportFromFileCommand>(), It.IsAny<CancellationToken>()),
+			Times.Never);
+	}
+
+	[Fact]
 	public async Task GetLastImportDates_ReturnsOkWithResults()
 	{
 		var results = new List<LastImportDatesForPaymentMethod>
@@ -89,13 +103,14 @@ public class ImportControllerTests
 		Assert.Same(results, ok.Value);
 	}
 
-	private static IFormFile CreateFormFile(string fileName, string content)
+	private static IFormFile CreateFormFile(string fileName, string content, string contentType = "text/csv")
 	{
 		var bytes = Encoding.UTF8.GetBytes(content);
 		var stream = new MemoryStream(bytes);
 		var file = new Mock<IFormFile>();
 		file.Setup(f => f.FileName).Returns(fileName);
 		file.Setup(f => f.Length).Returns(bytes.Length);
+		file.Setup(f => f.ContentType).Returns(contentType);
 		file.Setup(f => f.OpenReadStream()).Returns(stream);
 		return file.Object;
 	}

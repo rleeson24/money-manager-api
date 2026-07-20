@@ -14,6 +14,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Diagnostics;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Options;
 using Microsoft.Identity.Web;
 using System.Diagnostics;
@@ -23,6 +24,7 @@ using System.Text.Json.Serialization;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.AddServiceDefaults();
+builder.AddDefaultRateLimiting();
 builder.AddSqlServerClient("DefaultConnection", settings => settings.DisableHealthChecks = true);
 builder.AddMoneyManagerHealthChecks();
 var services = builder.Services;
@@ -42,7 +44,7 @@ if (!string.IsNullOrEmpty(keyVaultName))
 
 builder.WebHost.ConfigureKestrel(options =>
 {
-	options.Limits.MaxRequestBodySize = 100 * 1024 * 1024; // 100 MB
+	options.Limits.MaxRequestBodySize = ImportUploadLimits.MaxFileBytes;
 });
 
 builder.Services.AddSingleton<IHttpContextAccessor, HttpContextAccessor>();
@@ -196,14 +198,21 @@ if (app.Environment.IsDevelopment())
 	app.UseSwagger();
 	app.UseSwaggerUI();
 }
+else if (!app.Environment.IsEnvironment("Local"))
+{
+	app.UseHsts();
+	app.UseHttpsRedirection();
+}
 
 app.UseCors("Default");
+app.UseMiddleware<SecurityHeadersMiddleware>();
 app.UseMiddleware<RequestLoggingMiddleware>();
+app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapDefaultEndpoints();
 
-app.MapControllers();
+app.MapControllers().RequireRateLimiting("api");
 
 app.Run();

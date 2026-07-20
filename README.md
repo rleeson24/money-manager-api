@@ -63,7 +63,7 @@ Anonymous endpoints for platform probes (no Azure AD token required):
 |----------|---------|---------------|
 | `/alive`, `/health/live` | Liveness — process is running | No |
 | `/health`, `/health/ready` | Readiness — app can accept traffic | Yes under Aspire; in production only if `HealthChecks:IncludeDatabaseInReadiness` is `true` |
-| `/health/db` | Explicit SQL connectivity check | Yes (wakes auto-pause SQL) |
+| `/health/db` | Explicit SQL connectivity check (ping + table read) | Yes (wakes auto-pause SQL) |
 
 For Azure App Service or other frequent probes, point the health check path at **`/alive`** so an idle auto-pause database stays asleep.
 

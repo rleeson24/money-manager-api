@@ -1,7 +1,10 @@
+using System.Threading.RateLimiting;
 using Azure.Monitor.OpenTelemetry.AspNetCore;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Logging;
@@ -115,6 +118,48 @@ public static class Extensions
         return builder;
     }
 
+    public static TBuilder AddDefaultRateLimiting<TBuilder>(this TBuilder builder) where TBuilder : IHostApplicationBuilder
+    {
+        var configuration = builder.Configuration;
+
+        builder.Services.AddRateLimiter(options =>
+        {
+            options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+
+            options.AddPolicy("health", httpContext =>
+                RateLimitPartition.GetFixedWindowLimiter(
+                    GetClientPartitionKey(httpContext),
+                    _ => new FixedWindowRateLimiterOptions
+                    {
+                        PermitLimit = configuration.GetValue("RateLimiting:Health:PermitLimit", 300),
+                        Window = TimeSpan.FromMinutes(1),
+                        QueueLimit = 0,
+                    }));
+
+            options.AddPolicy("health-db", httpContext =>
+                RateLimitPartition.GetFixedWindowLimiter(
+                    GetClientPartitionKey(httpContext),
+                    _ => new FixedWindowRateLimiterOptions
+                    {
+                        PermitLimit = configuration.GetValue("RateLimiting:HealthDb:PermitLimit", 90),
+                        Window = TimeSpan.FromMinutes(1),
+                        QueueLimit = 0,
+                    }));
+
+            options.AddPolicy("api", httpContext =>
+                RateLimitPartition.GetFixedWindowLimiter(
+                    GetClientPartitionKey(httpContext),
+                    _ => new FixedWindowRateLimiterOptions
+                    {
+                        PermitLimit = configuration.GetValue("RateLimiting:Api:PermitLimit", 500),
+                        Window = TimeSpan.FromMinutes(15),
+                        QueueLimit = 0,
+                    }));
+        });
+
+        return builder;
+    }
+
     public static WebApplication MapDefaultEndpoints(this WebApplication app)
     {
         // Health endpoints are anonymous so platform probes work without Azure AD tokens.
@@ -122,25 +167,38 @@ public static class Extensions
         // Use /health/db when you explicitly want to verify database connectivity (that call will wake a paused database).
         var readinessOptions = new HealthCheckOptions
         {
-            Predicate = registration => registration.Tags.Contains("ready")
-        };
+            Predicate = registration => registration.Tags.Contains("ready"),
+        }.WithMinimalResponse();
         var livenessOptions = new HealthCheckOptions
         {
-            Predicate = registration => registration.Tags.Contains("live")
-        };
+            Predicate = registration => registration.Tags.Contains("live"),
+        }.WithMinimalResponse();
         var databaseOptions = new HealthCheckOptions
         {
-            Predicate = registration => registration.Tags.Contains("db")
-        };
+            Predicate = registration => registration.Tags.Contains("db"),
+        }.WithMinimalResponse();
 
-        app.MapHealthChecks(HealthEndpointPath, readinessOptions).AllowAnonymous();
-        app.MapHealthChecks(ReadinessEndpointPath, readinessOptions).AllowAnonymous();
-        app.MapHealthChecks(AlivenessEndpointPath, livenessOptions).AllowAnonymous();
-        app.MapHealthChecks(LivenessEndpointPath, livenessOptions).AllowAnonymous();
-        app.MapHealthChecks(DatabaseEndpointPath, databaseOptions).AllowAnonymous();
+        app.MapHealthChecks(HealthEndpointPath, readinessOptions)
+            .AllowAnonymous()
+            .RequireRateLimiting("health");
+        app.MapHealthChecks(ReadinessEndpointPath, readinessOptions)
+            .AllowAnonymous()
+            .RequireRateLimiting("health");
+        app.MapHealthChecks(AlivenessEndpointPath, livenessOptions)
+            .AllowAnonymous()
+            .RequireRateLimiting("health");
+        app.MapHealthChecks(LivenessEndpointPath, livenessOptions)
+            .AllowAnonymous()
+            .RequireRateLimiting("health");
+        app.MapHealthChecks(DatabaseEndpointPath, databaseOptions)
+            .AllowAnonymous()
+            .RequireRateLimiting("health-db");
 
         return app;
     }
+
+    private static string GetClientPartitionKey(HttpContext httpContext) =>
+        httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
 
     private static bool IsHealthCheckPath(PathString path) =>
         path.StartsWithSegments(HealthEndpointPath)

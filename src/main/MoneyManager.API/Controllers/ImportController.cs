@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using MoneyManager.API.Configuration;
 using MoneyManager.API.Filters;
 using MoneyManager.API.Infrastructure;
+using MoneyManager.API.Utilities;
 using MoneyManager.Core.Application.Import.Commands;
 using MoneyManager.Core.Application.Import.Queries;
 using MoneyManager.Core.Models;
@@ -26,7 +27,7 @@ namespace MoneyManager.API.Controllers
 		}
 
 		[HttpPost("file")]
-		[RequestSizeLimit(10 * 1024 * 1024)] // 10 MB
+		[RequestSizeLimit(ImportUploadLimits.MaxFileBytes)]
 		public async Task<IActionResult> ImportFile(
 			[FromForm] IFormFile? file,
 			[FromForm] string? format,
@@ -35,10 +36,11 @@ namespace MoneyManager.API.Controllers
 			CancellationToken cancellationToken)
 		{
 			var userId = UserIdHttpContext.GetRequired(HttpContext);
+			var safeFileName = CsvUploadValidator.SanitizeFileNameForLogging(file?.FileName);
 
 			_logger.LogInformation(
 				"Import file request received: file={FileName}, size={FileSize}, format={Format}, source={ImportSource}, paymentMethod={PaymentMethodId}",
-				file?.FileName,
+				safeFileName,
 				file?.Length,
 				format,
 				importSource,
@@ -50,9 +52,20 @@ namespace MoneyManager.API.Controllers
 				return ApiResults.ValidationError("No file uploaded.");
 			}
 
+			if (!CsvUploadValidator.IsValidCsvUpload(file, out var uploadError))
+			{
+				_logger.LogWarning(
+					"Import file request rejected for user {UserId}: {Reason} (file={FileName}, contentType={ContentType})",
+					userId,
+					uploadError,
+					safeFileName,
+					file.ContentType);
+				return ApiResults.ValidationError(uploadError!);
+			}
+
 			_logger.LogInformation(
 				"Import file request accepted for user {UserId}: {FileName} ({FileSize} bytes), format={Format}, source={ImportSource}, paymentMethod={PaymentMethodId}",
-				userId, file.FileName, file.Length, format, importSource, paymentMethodId);
+				userId, safeFileName, file.Length, format, importSource, paymentMethodId);
 
 			await using var stream = file.OpenReadStream();
 			var result = await _mediator.Send(
