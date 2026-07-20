@@ -1,4 +1,3 @@
-using Aspire.Microsoft.Data.SqlClient;
 using Azure.Extensions.AspNetCore.Configuration.Secrets;
 using Azure.Identity;
 using Azure.Security.KeyVault.Secrets;
