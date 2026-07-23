@@ -43,15 +43,24 @@ public sealed class SqlConnectionHealthCheck(
 				}
 			}
 
-			// Warm a real table read — SELECT 1 alone can succeed before the server accepts app queries.
-			await using (var dataCommand = connection.CreateCommand())
+			// Warm reads on tables the app hits on first load — Categories alone can succeed
+			// while PaymentMethods/Expenses are still unavailable on auto-pause SQL wake-up.
+			string[] warmupQueries =
+			[
+				"SELECT TOP 1 Category_I FROM Categories",
+				"SELECT TOP 1 ID FROM PaymentMethods",
+				"SELECT TOP 1 Expense_I FROM Expenses",
+			];
+
+			foreach (var query in warmupQueries)
 			{
-				dataCommand.CommandText = "SELECT TOP 1 Category_I FROM Categories";
+				await using var dataCommand = connection.CreateCommand();
+				dataCommand.CommandText = query;
 				dataCommand.CommandTimeout = commandTimeout;
 				await dataCommand.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
 			}
 
-			return HealthCheckResult.Healthy("SQL Server connection and read query succeeded.");
+			return HealthCheckResult.Healthy("SQL Server connection and application table reads succeeded.");
 		}
 		catch (Exception ex)
 		{
