@@ -22,12 +22,6 @@ using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.AddServiceDefaults();
-builder.AddDefaultRateLimiting();
-builder.AddSqlServerClient("DefaultConnection", settings => settings.DisableHealthChecks = true);
-builder.AddMoneyManagerHealthChecks();
-var services = builder.Services;
-
 builder.Configuration
 	.AddEnvironmentVariables()
 	.AddUserSecrets<Program>(optional: true, reloadOnChange: true);
@@ -40,6 +34,12 @@ if (!string.IsNullOrEmpty(keyVaultName))
 		new DefaultAzureCredential());
 	builder.Configuration.AddAzureKeyVault(secretClient, new KeyVaultSecretManager());
 }
+
+builder.AddServiceDefaults();
+builder.AddDefaultRateLimiting();
+builder.AddSqlServerClient("DefaultConnection", settings => settings.DisableHealthChecks = true);
+builder.AddMoneyManagerHealthChecks();
+var services = builder.Services;
 
 builder.WebHost.ConfigureKestrel(options =>
 {

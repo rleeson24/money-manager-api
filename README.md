@@ -28,6 +28,20 @@ Configure the following settings:
 - **ApplicationInsights:ConnectionString** - Application Insights connection string (optional)
 - **KeyVaultName** - Azure Key Vault name (optional)
 
+### Application Insights
+
+Telemetry uses OpenTelemetry via `Azure.Monitor.OpenTelemetry.AspNetCore`. Set the connection string using **one** of:
+
+| Source | Name |
+|--------|------|
+| App Service application setting | `APPLICATIONINSIGHTS_CONNECTION_STRING` |
+| Key Vault secret | `ApplicationInsights--ConnectionString` |
+| appsettings / user secrets | `ApplicationInsights:ConnectionString` |
+
+Key Vault and app settings are loaded **before** OpenTelemetry starts (see `Program.cs`). After deploy, confirm startup logs in App Service log stream include `Application Insights export: enabled`.
+
+In the Azure portal, open the **mm** Web App → **Monitoring** → **Application Insights** and verify the resource is linked, or paste the connection string manually under **Configuration** → **Application settings**.
+
 ### Database Setup
 
 **Production:** Run `Database/CreateTables.sql` (schema only), then `Database/GrantMmAppAccess.sql` if using the `mm` managed identity. Do **not** run `SeedCategories.sql` or `SeedPaymentMethods.sql` in production — those are legacy dev catalog data with fixed IDs.

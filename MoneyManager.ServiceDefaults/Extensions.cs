@@ -55,7 +55,11 @@ public static class Extensions
             logging.IncludeScopes = true;
         });
 
-        builder.Services.AddOpenTelemetry()
+        var applicationInsightsConnectionString = builder.Configuration["ApplicationInsights:ConnectionString"]
+            ?? builder.Configuration["APPLICATIONINSIGHTS_CONNECTION_STRING"];
+        var useOtlpExporter = !string.IsNullOrWhiteSpace(builder.Configuration["OTEL_EXPORTER_OTLP_ENDPOINT"]);
+
+        var openTelemetry = builder.Services.AddOpenTelemetry()
             .ConfigureResource(resource => resource
                 .AddService(
                     serviceName: builder.Environment.ApplicationName,
@@ -83,27 +87,14 @@ public static class Extensions
                     });
             });
 
-        builder.AddOpenTelemetryExporters();
-
-        return builder;
-    }
-
-    private static TBuilder AddOpenTelemetryExporters<TBuilder>(this TBuilder builder) where TBuilder : IHostApplicationBuilder
-    {
-        var useOtlpExporter = !string.IsNullOrWhiteSpace(builder.Configuration["OTEL_EXPORTER_OTLP_ENDPOINT"]);
-
-        if (useOtlpExporter)
-        {
-            builder.Services.AddOpenTelemetry().UseOtlpExporter();
-        }
-
-        var applicationInsightsConnectionString = builder.Configuration["ApplicationInsights:ConnectionString"]
-            ?? builder.Configuration["APPLICATIONINSIGHTS_CONNECTION_STRING"];
-
         if (!string.IsNullOrWhiteSpace(applicationInsightsConnectionString))
         {
-            builder.Services.AddOpenTelemetry()
-                .UseAzureMonitor(options => options.ConnectionString = applicationInsightsConnectionString);
+            openTelemetry.UseAzureMonitor(options =>
+                options.ConnectionString = applicationInsightsConnectionString);
+        }
+        else if (useOtlpExporter)
+        {
+            openTelemetry.UseOtlpExporter();
         }
 
         return builder;
