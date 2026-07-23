@@ -1,5 +1,7 @@
-Account,Date,Pending?,Description,Category,Check,Credit,Debit
-Checking,01/15/2025,,Direct Deposit Payroll,Salary,,1500.00,
-Checking,01/16/2025,,Grocery Store,Groceries,,,-45.67
-Checking,not-a-date,,Bad Date Row,Other,,,-10.00
-Checking,01/18/2025,,Coffee Shop,Dining,,,-5.50
+"FREE BUSINESS CHECKING","account number xxx"
+"Date","Account","Description","Check #","Category","Credit","Debit"
+01/15/2025,Checking,Direct Deposit Payroll,,Salary,1500.00,
+01/16/2025,Checking,Grocery Store,,Groceries,,-45.67
+not-a-date,Checking,Bad Date Row,,Other,,-10.00
+01/18/2025,Checking,Coffee Shop,,Dining,,-5.50
+"","","","Totals:","19 items","2550.00","-1056.98"

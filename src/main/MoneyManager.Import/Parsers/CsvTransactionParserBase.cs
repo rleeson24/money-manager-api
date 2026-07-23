@@ -12,7 +12,7 @@ namespace MoneyManager.Import.Parsers
 	{
 		public abstract IReadOnlyList<string> SourceKeys { get; }
 
-		public async Task<IReadOnlyList<BankTransaction>> ParseAsync(Stream fileContent, CancellationToken cancellationToken = default)
+		public virtual async Task<IReadOnlyList<BankTransaction>> ParseAsync(Stream fileContent, CancellationToken cancellationToken = default)
 		{
 			using var reader = new StreamReader(fileContent, Encoding.UTF8, leaveOpen: true);
 			var headerLine = await reader.ReadLineAsync(cancellationToken);

@@ -37,6 +37,41 @@ namespace MoneyManager.Import.Tests.Parsers
 		}
 
 		[Fact]
+		public async Task ParseAsync_LegacyHeaderWithoutPreamble_StillWorks()
+		{
+			const string csv = """
+				Account,Date,Pending?,Description,Category,Check,Credit,Debit
+				Checking,04/01/2025,,Legacy Row,,,,-12.00
+				""";
+			await using var stream = CsvFixtureHelper.ToStream(csv);
+
+			var transactions = await _parser.ParseAsync(stream);
+
+			Assert.Single(transactions);
+			Assert.Equal(new DateTime(2025, 4, 1), transactions[0].Date);
+			Assert.Equal("Legacy Row", transactions[0].Description);
+			Assert.Equal(12.00m, transactions[0].Amount);
+		}
+
+		[Fact]
+		public async Task ParseAsync_NewFormatWithAccountPreambleRow_SkipsPreamble()
+		{
+			const string csv = """
+				"FREE BUSINESS CHECKING","account number xxx"
+				"Date","Account","Description","Check #","Category","Credit","Debit"
+				05/01/2025,Checking,Office Supplies,,Business,,-19.99
+				""";
+			await using var stream = CsvFixtureHelper.ToStream(csv);
+
+			var transactions = await _parser.ParseAsync(stream);
+
+			Assert.Single(transactions);
+			Assert.Equal(new DateTime(2025, 5, 1), transactions[0].Date);
+			Assert.Equal("Office Supplies", transactions[0].Description);
+			Assert.Equal(19.99m, transactions[0].Amount);
+		}
+
+		[Fact]
 		public async Task ParseAsync_InvalidHeader_ReturnsEmpty()
 		{
 			const string csv = "Wrong,Columns,Only\n01/01/2025,foo,bar\n";
@@ -78,6 +113,23 @@ namespace MoneyManager.Import.Tests.Parsers
 
 			Assert.Single(transactions);
 			Assert.Equal(-100.00m, transactions[0].Amount);
+		}
+
+		[Fact]
+		public async Task ParseAsync_TotalsFooterRow_IsSkipped()
+		{
+			const string csv = """
+				"FREE BUSINESS CHECKING","account number xxx"
+				"Date","Account","Description","Check #","Category","Credit","Debit"
+				06/01/2025,Checking,Valid Purchase,,Shopping,,-30.00
+				"","","","Totals:","19 items","2550.00","-1056.98"
+				""";
+			await using var stream = CsvFixtureHelper.ToStream(csv);
+
+			var transactions = await _parser.ParseAsync(stream);
+
+			Assert.Single(transactions);
+			Assert.Equal("Valid Purchase", transactions[0].Description);
 		}
 
 		[Fact]
