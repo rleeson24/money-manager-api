@@ -15,7 +15,8 @@ public class ExpenseBulkUpdateMapperTests
 		{
 			ExpenseDate = new DateTime(2024, 3, 1),
 			Category = 5,
-			DatePaid = new DateTime(2024, 3, 2)
+			DatePaid = new DateTime(2024, 3, 2),
+			ExcludeFromCredit = false
 		};
 
 		var updates = _mapper.ToUpdates(request);
@@ -23,13 +24,6 @@ public class ExpenseBulkUpdateMapperTests
 		Assert.Equal(request.ExpenseDate, updates[ExpenseFieldNames.ExpenseDate]);
 		Assert.Equal(5, updates[ExpenseFieldNames.Category]);
 		Assert.Equal(request.DatePaid, updates[ExpenseFieldNames.DatePaid]);
-	}
-
-	[Fact]
-	public void ToUpdates_MapsExcludeFromCreditFalse()
-	{
-		var updates = _mapper.ToUpdates(new BulkUpdateRequest { ExcludeFromCredit = false });
-
 		Assert.Equal(false, updates[ExpenseFieldNames.ExcludeFromCredit]);
 	}
 

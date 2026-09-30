@@ -144,7 +144,8 @@ public class ExpensePatchDbUpdateBuilderTests : TestBase<object>
 			{
 				[ExpenseFieldNames.ExpenseDate] = new DateTime(2026, 7, 1),
 				[ExpenseFieldNames.Category] = 15,
-				[ExpenseFieldNames.DatePaid] = null
+				[ExpenseFieldNames.DatePaid] = null,
+				[ExpenseFieldNames.ExcludeFromCredit] = false
 			};
 
 			_hasChanges = _builder.AppendBulkSetClauses(updates, _setClauses, _parameters);
@@ -163,6 +164,13 @@ public class ExpensePatchDbUpdateBuilderTests : TestBase<object>
 		public void AddsBulkDatePaidNullClause() => Assert.Contains("DatePaid = NULL", _setClauses);
 
 		[Fact]
+		public void AddsBulkExcludeFromCreditClause() => Assert.Contains("ExcludeFromCredit = @ExcludeFromCredit", _setClauses);
+
+		[Fact]
+		public void StoresExcludeFromCreditFalse() =>
+			Assert.Contains(_parameters, p => p.ParameterName == "@ExcludeFromCredit" && p.Value is false);
+
+		[Fact]
 		public void IgnoresNonBulkFields()
 		{
 			_setClauses.Clear();
@@ -176,31 +184,5 @@ public class ExpensePatchDbUpdateBuilderTests : TestBase<object>
 			Assert.False(hasChanges);
 			Assert.Empty(_setClauses);
 		}
-	}
-
-	public class AppendBulkSetClauses_ExcludeFromCredit : ExpensePatchDbUpdateBuilderTests
-	{
-		public AppendBulkSetClauses_ExcludeFromCredit()
-		{
-			ExecuteTestMethod();
-		}
-
-		protected override void ExecuteTestMethod()
-		{
-			_hasChanges = _builder.AppendBulkSetClauses(
-				new Dictionary<string, object?> { [ExpenseFieldNames.ExcludeFromCredit] = false },
-				_setClauses,
-				_parameters);
-		}
-
-		[Fact]
-		public void ReturnsTrue_WhenExcludeFromCreditSet() => Assert.True(_hasChanges);
-
-		[Fact]
-		public void AddsBulkExcludeFromCreditClause() => Assert.Contains("ExcludeFromCredit = @ExcludeFromCredit", _setClauses);
-
-		[Fact]
-		public void StoresFalse() =>
-			Assert.Contains(_parameters, p => p.ParameterName == "@ExcludeFromCredit" && p.Value is false);
 	}
 }

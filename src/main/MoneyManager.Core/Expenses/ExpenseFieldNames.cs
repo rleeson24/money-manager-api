@@ -34,7 +34,8 @@ namespace MoneyManager.Core.Expenses
 		[
 			ExpenseDate,
 			Category,
-			DatePaid
+			DatePaid,
+			ExcludeFromCredit
 		];
 
 		public static IReadOnlySet<string> AllPatchable => PatchableFields;

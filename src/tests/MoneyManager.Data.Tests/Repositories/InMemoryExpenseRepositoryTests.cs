@@ -303,7 +303,8 @@ public class InMemoryExpenseRepositoryTests
 			var updates = new Dictionary<string, object?>
 			{
 				[ExpenseFieldNames.ExpenseDate] = newDate,
-				[ExpenseFieldNames.Category] = 99
+				[ExpenseFieldNames.Category] = 99,
+				[ExpenseFieldNames.ExcludeFromCredit] = true
 			};
 
 			var result = await _repository.BulkUpdate(new[] { 1, 2 }, _userId, updates);
@@ -314,7 +315,9 @@ public class InMemoryExpenseRepositoryTests
 			var second = await _repository.Get(2, _userId);
 			Assert.Equal(newDate, first!.ExpenseDate);
 			Assert.Equal(99, first.Category);
+			Assert.True(first.ExcludeFromCredit);
 			Assert.Equal(newDate, second!.ExpenseDate);
+			Assert.True(second.ExcludeFromCredit);
 			Assert.Equal(_fixture.FixedUtcNow, first.ModifiedDateTime);
 		}
 
