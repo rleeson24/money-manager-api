@@ -120,6 +120,12 @@ namespace MoneyManager.Data.Expenses
 				}
 				added++;
 			}
+			if (updates.ContainsKey(ExpenseFieldNames.ExcludeFromCredit))
+			{
+				setClauses.Add("ExcludeFromCredit = @ExcludeFromCredit");
+				parameters.Add(new SqlParameter("@ExcludeFromCredit", updates[ExpenseFieldNames.ExcludeFromCredit] is bool exclude && exclude));
+				added++;
+			}
 
 			return added > 0;
 		}

@@ -17,6 +17,8 @@ namespace MoneyManager.Core.Expenses
 				updates[ExpenseFieldNames.DatePaid] = null;
 			else if (request.DatePaid != null)
 				updates[ExpenseFieldNames.DatePaid] = request.DatePaid;
+			if (request.ExcludeFromCredit.HasValue)
+				updates[ExpenseFieldNames.ExcludeFromCredit] = request.ExcludeFromCredit.Value;
 			return updates;
 		}
 	}

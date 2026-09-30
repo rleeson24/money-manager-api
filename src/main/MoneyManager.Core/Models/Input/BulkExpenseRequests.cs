@@ -15,6 +15,8 @@ namespace MoneyManager.Core.Models.Input
 
 		[JsonPropertyName("setDatePaidToNull")]
 		public bool? SetDatePaidToNull { get; set; }
+
+		public bool? ExcludeFromCredit { get; set; }
 	}
 
 	public class BulkDeleteRequest

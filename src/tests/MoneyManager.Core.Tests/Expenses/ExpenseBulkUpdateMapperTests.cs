@@ -26,6 +26,14 @@ public class ExpenseBulkUpdateMapperTests
 	}
 
 	[Fact]
+	public void ToUpdates_MapsExcludeFromCreditFalse()
+	{
+		var updates = _mapper.ToUpdates(new BulkUpdateRequest { ExcludeFromCredit = false });
+
+		Assert.Equal(false, updates[ExpenseFieldNames.ExcludeFromCredit]);
+	}
+
+	[Fact]
 	public void ToUpdates_MapsNullSentinels()
 	{
 		var request = new BulkUpdateRequest

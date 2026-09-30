@@ -177,4 +177,30 @@ public class ExpensePatchDbUpdateBuilderTests : TestBase<object>
 			Assert.Empty(_setClauses);
 		}
 	}
+
+	public class AppendBulkSetClauses_ExcludeFromCredit : ExpensePatchDbUpdateBuilderTests
+	{
+		public AppendBulkSetClauses_ExcludeFromCredit()
+		{
+			ExecuteTestMethod();
+		}
+
+		protected override void ExecuteTestMethod()
+		{
+			_hasChanges = _builder.AppendBulkSetClauses(
+				new Dictionary<string, object?> { [ExpenseFieldNames.ExcludeFromCredit] = false },
+				_setClauses,
+				_parameters);
+		}
+
+		[Fact]
+		public void ReturnsTrue_WhenExcludeFromCreditSet() => Assert.True(_hasChanges);
+
+		[Fact]
+		public void AddsBulkExcludeFromCreditClause() => Assert.Contains("ExcludeFromCredit = @ExcludeFromCredit", _setClauses);
+
+		[Fact]
+		public void StoresFalse() =>
+			Assert.Contains(_parameters, p => p.ParameterName == "@ExcludeFromCredit" && p.Value is false);
+	}
 }
