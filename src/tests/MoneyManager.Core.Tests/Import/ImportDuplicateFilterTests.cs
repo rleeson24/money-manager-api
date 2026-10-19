@@ -46,6 +46,33 @@ public class ImportDuplicateFilterTests
 	}
 
 	[Fact]
+	public void FilterDuplicates_MatchesWhenDescriptionsDiffer()
+	{
+		var existing = new List<Expense>
+		{
+			new()
+			{
+				ExpenseDate = new DateTime(2026, 10, 14, 4, 0, 0),
+				Amount = 3.22m,
+				ExpenseDescription = "Carolina Pottery - foam"
+			}
+		};
+		var transactions = new List<BankTransaction>
+		{
+			new()
+			{
+				Date = new DateTime(2026, 10, 14),
+				Amount = 3.22m,
+				Description = "SQ *CAROLINA POTTERY MYRTLE BEACH SC0002305843025625721644"
+			}
+		};
+
+		var result = _filter.FilterDuplicates(existing, transactions);
+
+		Assert.Empty(result);
+	}
+
+	[Fact]
 	public void FilterDuplicates_IgnoresTimeComponentOnDates()
 	{
 		var existing = new List<Expense>

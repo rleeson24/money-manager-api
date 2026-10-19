@@ -181,14 +181,15 @@ namespace MoneyManager.Data.Repositories
 		public async Task<IReadOnlyList<Expense>> ListForUserInDateRange(Guid userId, DateTime fromDate, DateTime toDate, int? paymentMethodId = null)
 		{
 			var result = new List<DbExpense>();
+			// Exclusive end so a time later on the last calendar day (manual entries are stored as local midnight in UTC) is still included.
 			var sql = paymentMethodId.HasValue
-				? "SELECT * FROM Expenses WHERE UserId = @UserId AND ExpenseDate >= @FromDate AND ExpenseDate <= @ToDate AND PaymentMethod = @PaymentMethod ORDER BY ExpenseDate DESC"
-				: "SELECT * FROM Expenses WHERE UserId = @UserId AND ExpenseDate >= @FromDate AND ExpenseDate <= @ToDate ORDER BY ExpenseDate DESC";
+				? "SELECT * FROM Expenses WHERE UserId = @UserId AND ExpenseDate >= @FromDate AND ExpenseDate < @ToDateExclusive AND PaymentMethod = @PaymentMethod ORDER BY ExpenseDate DESC"
+				: "SELECT * FROM Expenses WHERE UserId = @UserId AND ExpenseDate >= @FromDate AND ExpenseDate < @ToDateExclusive ORDER BY ExpenseDate DESC";
 			var parameters = new List<SqlParameter>
 			{
 				new SqlParameter("@UserId", userId),
 				new SqlParameter("@FromDate", fromDate.Date),
-				new SqlParameter("@ToDate", toDate.Date)
+				new SqlParameter("@ToDateExclusive", toDate.Date.AddDays(1))
 			};
 			if (paymentMethodId.HasValue)
 				parameters.Add(new SqlParameter("@PaymentMethod", paymentMethodId.Value));
@@ -208,12 +209,12 @@ namespace MoneyManager.Data.Repositories
 			IReadOnlyList<int>? categoryIds)
 		{
 			var result = new List<DbExpense>();
-			var sql = "SELECT * FROM Expenses WHERE UserId = @UserId AND ExpenseDate >= @FromDate AND ExpenseDate <= @ToDate";
+			var sql = "SELECT * FROM Expenses WHERE UserId = @UserId AND ExpenseDate >= @FromDate AND ExpenseDate < @ToDateExclusive";
 			var parameters = new List<SqlParameter>
 			{
 				new SqlParameter("@UserId", userId),
 				new SqlParameter("@FromDate", fromDate.Date),
-				new SqlParameter("@ToDate", toDate.Date)
+				new SqlParameter("@ToDateExclusive", toDate.Date.AddDays(1))
 			};
 
 			if (!string.IsNullOrWhiteSpace(search))

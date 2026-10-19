@@ -372,6 +372,59 @@ public class InMemoryExpenseRepositoryTests
 		}
 	}
 
+	public class ListForUserInDateRange
+	{
+		private readonly InMemoryExpenseRepository _repository;
+		private readonly Guid _userId;
+
+		public ListForUserInDateRange()
+		{
+			var fixture = new InMemoryRepositoryFixture();
+			_repository = fixture.CreateExpenseRepository();
+			_userId = fixture.SeedUserId;
+		}
+
+		[Fact]
+		public async Task IncludesExpenseLaterOnTheEndDate()
+		{
+			var created = await _repository.Create(_userId, new CreateExpenseModel
+			{
+				ExpenseDate = new DateTime(2026, 10, 14, 4, 0, 0),
+				Expense = "Carolina Pottery - foam",
+				Amount = 3.22m,
+				PaymentMethod = 1
+			});
+
+			var result = await _repository.ListForUserInDateRange(
+				_userId,
+				new DateTime(2026, 10, 14),
+				new DateTime(2026, 10, 14),
+				1);
+
+			Assert.Contains(result, e => e.Expense_I == created!.Expense_I);
+		}
+
+		[Fact]
+		public async Task ExcludesExpenseOnTheFollowingCalendarDay()
+		{
+			var created = await _repository.Create(_userId, new CreateExpenseModel
+			{
+				ExpenseDate = new DateTime(2026, 10, 15, 0, 0, 0),
+				Expense = "Next day",
+				Amount = 3.22m,
+				PaymentMethod = 1
+			});
+
+			var result = await _repository.ListForUserInDateRange(
+				_userId,
+				new DateTime(2026, 10, 14),
+				new DateTime(2026, 10, 14),
+				1);
+
+			Assert.DoesNotContain(result, e => e.Expense_I == created!.Expense_I);
+		}
+	}
+
 	public class UserScoping
 	{
 		private readonly InMemoryExpenseRepository _repository;
