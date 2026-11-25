@@ -24,6 +24,32 @@ namespace MoneyManager.Data.Repositories
 		public Task<IReadOnlyList<ExpenseSplit>> GetByExpenseId(int expense_I, Guid userId) =>
 			GetByExpenseIdFromDb(expense_I, userId);
 
+		public async Task<IReadOnlyList<ExpenseSplit>> ListByExpenseIds(Guid userId, IReadOnlyList<int> expenseIds)
+		{
+			if (expenseIds.Count == 0)
+				return Array.Empty<ExpenseSplit>();
+
+			var parameters = new List<SqlParameter> { new("@UserId", userId) };
+			var placeholders = new List<string>(expenseIds.Count);
+			for (var i = 0; i < expenseIds.Count; i++)
+			{
+				var name = "@ExpenseId" + i;
+				placeholders.Add(name);
+				parameters.Add(new SqlParameter(name, expenseIds[i]));
+			}
+
+			var result = new List<DbExpenseSplit>();
+			await _db.ExecuteReader(
+				$"SELECT * FROM Expenses_split WHERE UserId = @UserId AND Expense_I IN ({string.Join(", ", placeholders)}) ORDER BY Id",
+				parameters,
+				async reader =>
+				{
+					while (await reader.ReadAsync())
+						result.Add(await _mapper.FromDbReader(reader));
+				});
+			return result.Select(ToExpenseSplit).ToList();
+		}
+
 		private async Task<IReadOnlyList<ExpenseSplit>> GetByExpenseIdFromDb(int expense_I, Guid userId)
 		{
 			var result = new List<DbExpenseSplit>();

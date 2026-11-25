@@ -7,6 +7,8 @@ namespace MoneyManager.Core.Repositories
 	public interface IExpenseSplitRepository
 	{
 		Task<IReadOnlyList<ExpenseSplit>> GetByExpenseId(int expense_I, Guid userId);
+		/// <summary>Splits for the given expenses owned by the user. Unknown ids are ignored.</summary>
+		Task<IReadOnlyList<ExpenseSplit>> ListByExpenseIds(Guid userId, IReadOnlyList<int> expenseIds);
 		Task<ExpenseSplit?> Get(int id, Guid userId);
 		Task<ExpenseSplit?> Create(Guid userId, CreateOrUpdateExpenseSplitModel model);
 		Task<ExpenseSplit?> Update(int id, Guid userId, CreateOrUpdateExpenseSplitModel model);

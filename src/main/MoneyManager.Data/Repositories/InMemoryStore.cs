@@ -282,6 +282,20 @@ namespace MoneyManager.Data.Repositories
 			}
 		}
 
+		public IReadOnlyList<ExpenseSplit> GetSplitsByExpenseIds(IReadOnlyList<int> expenseIds, Guid userId)
+		{
+			lock (_lock)
+			{
+				if (expenseIds.Count == 0)
+					return Array.Empty<ExpenseSplit>();
+				var idSet = expenseIds.ToHashSet();
+				return _expenseSplits
+					.Where(s => idSet.Contains(s.Expense_I) && IsOwnedBy(s.Expense_I, userId))
+					.OrderBy(s => s.Id)
+					.ToList();
+			}
+		}
+
 		public ExpenseSplit? GetSplitById(int id, Guid userId)
 		{
 			lock (_lock)

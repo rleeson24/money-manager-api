@@ -19,6 +19,9 @@ namespace MoneyManager.Data.Repositories
 		public Task<IReadOnlyList<ExpenseSplit>> GetByExpenseId(int expense_I, Guid userId) =>
 			Task.FromResult(_store.GetSplitsByExpenseId(expense_I, userId));
 
+		public Task<IReadOnlyList<ExpenseSplit>> ListByExpenseIds(Guid userId, IReadOnlyList<int> expenseIds) =>
+			Task.FromResult(_store.GetSplitsByExpenseIds(expenseIds, userId));
+
 		public Task<ExpenseSplit?> Get(int id, Guid userId) =>
 			Task.FromResult(_store.GetSplitById(id, userId));
 
