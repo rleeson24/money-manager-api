@@ -3,7 +3,10 @@ using MoneyManager.Core.Models;
 namespace MoneyManager.Import.Parsers
 {
 	/// <summary>
-	/// ABFCU Savings and Checking CSV: Description, Category, Type, Date, Deposits, Withdrawals, Transaction Amount, Balance, ...
+	/// ABFCU Savings and Checking CSV.
+	/// Current savings export: Account, Date, Description, Note, Check #, Amount, Balance.
+	/// Descriptions may span lines inside quotes. Withdrawals are parenthesized, e.g. ($20.00).
+	/// Older exports: Description, Category, Type, Date, Deposits, Withdrawals, Transaction Amount, Balance.
 	/// </summary>
 	public sealed class AbfcuCsvParser : CsvTransactionParserBase
 	{
@@ -14,7 +17,7 @@ namespace MoneyManager.Import.Parsers
 			var dateIdx = FindColumn(headers, "Date");
 			var depositsIdx = FindColumn(headers, "Deposits");
 			var withdrawalsIdx = FindColumn(headers, "Withdrawals");
-			var txnAmtIdx = FindColumn(headers, "Transaction Amount");
+			var txnAmtIdx = FindAmountColumn(headers);
 			return dateIdx >= 0 && (depositsIdx >= 0 || withdrawalsIdx >= 0 || txnAmtIdx >= 0);
 		}
 
@@ -25,7 +28,7 @@ namespace MoneyManager.Import.Parsers
 			var descIdx = FindColumn(headers, "Description");
 			var depositsIdx = FindColumn(headers, "Deposits");
 			var withdrawalsIdx = FindColumn(headers, "Withdrawals");
-			var txnAmtIdx = FindColumn(headers, "Transaction Amount");
+			var txnAmtIdx = FindAmountColumn(headers);
 			if (dateIdx < 0 || dateIdx >= cols.Count)
 				return false;
 			if (!TryParseDate(cols[dateIdx], out var date))
@@ -34,7 +37,7 @@ namespace MoneyManager.Import.Parsers
 			decimal amount;
 			if (txnAmtIdx >= 0 && txnAmtIdx < cols.Count && TryParseAmount(cols[txnAmtIdx], out amount))
 			{
-				// Use Transaction Amount column when present (e.g. ($20.00))
+				// Transaction Amount or Amount, including parenthesized withdrawals such as ($20.00).
 			}
 			else
 			{
@@ -51,10 +54,28 @@ namespace MoneyManager.Import.Parsers
 			{
 				Date = date.Date,
 				Amount = amount,
-				Description = description ?? "",
+				Description = NormalizeDescription(description),
 				AccountType = BankAccountType.Depository
 			};
 			return true;
+		}
+
+		/// <summary>
+		/// Prefer the legacy Transaction Amount column so it is not confused with a shorter Amount header.
+		/// </summary>
+		private static int FindAmountColumn(IReadOnlyList<string> headers)
+		{
+			var transactionAmountIdx = FindColumn(headers, "Transaction Amount");
+			return transactionAmountIdx >= 0 ? transactionAmountIdx : FindColumn(headers, "Amount");
+		}
+
+		private static string NormalizeDescription(string? description)
+		{
+			if (string.IsNullOrWhiteSpace(description))
+				return "";
+
+			var parts = description.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
+			return string.Join(" ", parts);
 		}
 	}
 }

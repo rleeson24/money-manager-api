@@ -93,6 +93,37 @@ namespace MoneyManager.Import.Tests.Parsers
 		}
 
 		[Fact]
+		public async Task ParseAsync_CurrentSavingsExport_ParsesAmountColumnAndMultilineDescriptions()
+		{
+			const string csv = """
+				Account,Date,Description,Note,Check #,Amount,Balance
+				PRIMARY SHARE,11/23/2026,"Deposit PAYPAL
+				TYPE: TRANSFER CO: PAYPAL",,,"$1,078.92","$3,292.66"
+				PRIMARY SHARE,11/13/2026,"Withdrawal Southern Bank
+				TYPE: P2P TRF CO: Southern Bank NAME: Robert Leeson",,,($20.00),"$2,213.74"
+				PRIMARY SHARE,10/31/2026,Deposit Dividend 0.350%,,,$0.59,"$2,233.74"
+				""";
+			await using var stream = CsvFixtureHelper.ToStream(csv);
+
+			var transactions = await _parser.ParseAsync(stream);
+
+			Assert.Equal(3, transactions.Count);
+
+			Assert.Equal(new DateTime(2026, 11, 23), transactions[0].Date);
+			Assert.Equal("Deposit PAYPAL TYPE: TRANSFER CO: PAYPAL", transactions[0].Description);
+			Assert.Equal(1078.92m, transactions[0].Amount);
+			Assert.Equal(BankAccountType.Depository, transactions[0].AccountType);
+
+			Assert.Equal(new DateTime(2026, 11, 13), transactions[1].Date);
+			Assert.Equal("Withdrawal Southern Bank TYPE: P2P TRF CO: Southern Bank NAME: Robert Leeson", transactions[1].Description);
+			Assert.Equal(-20.00m, transactions[1].Amount);
+
+			Assert.Equal(new DateTime(2026, 10, 31), transactions[2].Date);
+			Assert.Equal("Deposit Dividend 0.350%", transactions[2].Description);
+			Assert.Equal(0.59m, transactions[2].Amount);
+		}
+
+		[Fact]
 		public async Task ParseAsync_TransactionAmountInParentheses_IsNegative()
 		{
 			const string csv = """

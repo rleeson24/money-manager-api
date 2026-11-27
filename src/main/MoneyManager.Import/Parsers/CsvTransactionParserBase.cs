@@ -15,23 +15,54 @@ namespace MoneyManager.Import.Parsers
 		public virtual async Task<IReadOnlyList<BankTransaction>> ParseAsync(Stream fileContent, CancellationToken cancellationToken = default)
 		{
 			using var reader = new StreamReader(fileContent, Encoding.UTF8, leaveOpen: true);
-			var headerLine = await reader.ReadLineAsync(cancellationToken);
-			if (string.IsNullOrWhiteSpace(headerLine))
+			var headerRecord = await ReadCsvRecordAsync(reader, cancellationToken);
+			if (string.IsNullOrWhiteSpace(headerRecord))
 				return Array.Empty<BankTransaction>();
-			var headers = ParseCsvRow(headerLine);
+			var headers = ParseCsvRow(headerRecord);
 			if (!ValidateHeader(headers))
 				return Array.Empty<BankTransaction>();
 
 			var list = new List<BankTransaction>();
-			string? line;
-			while ((line = await reader.ReadLineAsync(cancellationToken)) != null)
+			string? record;
+			while ((record = await ReadCsvRecordAsync(reader, cancellationToken)) != null)
 			{
-				if (string.IsNullOrWhiteSpace(line)) continue;
-				var cols = ParseCsvRow(line);
+				if (string.IsNullOrWhiteSpace(record)) continue;
+				var cols = ParseCsvRow(record);
 				if (TryParseRow(headers, cols, out var transaction))
 					list.Add(transaction);
 			}
 			return list;
+		}
+
+		/// <summary>
+		/// Read one CSV record. Quoted fields may contain newlines, so a record can span physical lines.
+		/// </summary>
+		protected static async Task<string?> ReadCsvRecordAsync(StreamReader reader, CancellationToken cancellationToken)
+		{
+			var sb = new StringBuilder();
+			var inQuotes = false;
+			var started = false;
+
+			while (true)
+			{
+				var line = await reader.ReadLineAsync(cancellationToken);
+				if (line == null)
+					return started ? sb.ToString() : null;
+
+				if (started)
+					sb.Append('\n');
+				sb.Append(line);
+				started = true;
+
+				foreach (var c in line)
+				{
+					if (c == '"')
+						inQuotes = !inQuotes;
+				}
+
+				if (!inQuotes)
+					return sb.ToString();
+			}
 		}
 
 		/// <summary>
