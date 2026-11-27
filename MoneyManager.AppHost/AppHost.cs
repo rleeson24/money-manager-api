@@ -4,7 +4,10 @@ var builder = DistributedApplication.CreateBuilder(args);
 var sql = builder.AddSqlServer("sql")
 	.AddDatabase("DefaultConnection");
 
-builder.AddProject<Projects.MoneyManager_API>("moneymanager-api")
+builder.AddDotnetProject("moneymanager-api", "../src/main/MoneyManager.API/MoneyManager.API.csproj", options =>
+	{
+		options.LaunchProfileName = "https";
+	})
 	.WithReference(sql)
 	.WithEnvironment("Data__AspireOrchestrated", "true");
 
